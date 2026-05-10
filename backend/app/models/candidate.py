@@ -59,6 +59,6 @@ class Candidate(Base):
     default=datetime.utcnow
     )
 
-    role:Mapped[str] = relationship(
-        back_populates="cadidates"
+    role: Mapped["Role"] = relationship(
+        back_populates="candidates"
     )

@@ -24,12 +24,6 @@ class Role(Base):
         nullable=False
     )
 
-    name:Mapped[str] = mapped_column(
-        String(100),
-        unique=True,
-        nullable=False
-    )
-
     created_at: Mapped[datetime] = mapped_column(
     DateTime,
     default=datetime.utcnow
@@ -38,4 +32,13 @@ class Role(Base):
     candidates: Mapped[list["Candidate"]] = relationship(
         back_populates="role",
         cascade="all, delete"
+    )
+
+    experience_level: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False
+    )
+
+    experience_required_years: Mapped[int] = mapped_column(
+        nullable=False
     )
