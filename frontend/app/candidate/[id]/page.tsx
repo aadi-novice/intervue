@@ -35,7 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { api, type CandidateDetail } from "@/lib/api";
+import { api, type CandidateDetail, type KeyMoment } from "@/lib/api";
 
 function ScoreRing({ value, color, size = 88 }: { value: number; color: string; size?: number }) {
   const r = size * 0.41;
@@ -226,7 +226,7 @@ export default function CandidateProfilePage() {
                 >
                   {candidate.avatar_path ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`http://localhost:8000${candidate.avatar_path}`} alt={candidate.name} className="w-full h-full object-cover" />
+                    <img src={`http://35.200.131.204:8000${candidate.avatar_path}`} alt={candidate.name} className="w-full h-full object-cover" />
                   ) : (
                     candidate.avatar
                   )}
@@ -511,12 +511,22 @@ export default function CandidateProfilePage() {
                   {a.key_moments && a.key_moments.length > 0 && (
                     <div>
                       <ul className="space-y-2">
-                        {visibleKeyMoments?.map((km, i) => (
-                          <li key={i} className="flex items-start gap-2.5 text-sm text-[#c2c6d6] p-2.5 rounded-lg bg-[#272a31] border border-[#32353c]">
-                            <span className="w-5 h-5 rounded bg-[#3b82f6]/10 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-[#3b82f6]">{i + 1}</span>
-                            <span className="leading-relaxed">{km}</span>
-                          </li>
-                        ))}
+                        {visibleKeyMoments?.map((km, i) => {
+                          const isObj = typeof km === "object" && km !== null;
+                          const momentText = isObj ? (km as KeyMoment).moment : (km as string);
+                          const signalText = isObj ? (km as KeyMoment).signal : null;
+                          return (
+                            <li key={i} className="flex items-start gap-2.5 text-sm text-[#c2c6d6] p-2.5 rounded-lg bg-[#272a31] border border-[#32353c]">
+                              <span className="w-5 h-5 rounded bg-[#3b82f6]/10 flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-[#3b82f6]">{i + 1}</span>
+                              <span className="leading-relaxed flex-1">
+                                {momentText}
+                                {signalText && (
+                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20 align-middle">{signalText}</span>
+                                )}
+                              </span>
+                            </li>
+                          );
+                        })}
                       </ul>
                       {a.key_moments.length > 4 && (
                         <button

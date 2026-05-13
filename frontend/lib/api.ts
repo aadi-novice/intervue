@@ -1,5 +1,5 @@
-const BASE = "http://localhost:8000";
-
+const BASE = "http://35.200.131.204:8000";
+//NEXT_PUBLIC_API_URL=http://35.200.131.204:8000
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...init?.headers },
@@ -103,12 +103,17 @@ export interface CandidateDetail extends PipelineCandidate {
   analysis: AnalysisDetail | null;
 }
 
+export interface KeyMoment {
+  moment: string;
+  signal: string;
+}
+
 export interface AnalysisDetail {
   id: number;
   summary: string;
   strengths: string[];
   weaknesses: string[];
-  key_moments: string[];
+  key_moments: (KeyMoment | string)[];
   resume_alignment: { claim: string; result: string; severity: "low" | "medium" | "high" }[];
   technical_score: number;
   communication_score: number;
