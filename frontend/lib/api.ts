@@ -1,10 +1,20 @@
-const BASE = " https://pleading-semifinal-flyer.ngrok-free.dev";
-//NEXT_PUBLIC_API_URL=http://35.200.131.204:8000
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ??
+  "https://pleading-semifinal-flyer.ngrok-free.dev";
+
+const BASE = BASE_URL;
+
+// Headers needed when routing through ngrok tunnels
+const NGROK_HEADERS: HeadersInit = BASE_URL.includes("ngrok")
+  ? { "ngrok-skip-browser-warning": "true" }
+  : {};
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { "Content-Type": "application/json", ...NGROK_HEADERS, ...init?.headers },
     ...init,
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail ?? res.statusText);
@@ -149,21 +159,21 @@ export const api = {
     uploadResume: (id: string | number, file: File) => {
       const form = new FormData();
       form.append("file", file);
-      return fetch(`${BASE}/candidates/${id}/resume`, { method: "POST", body: form }).then((r) =>
+      return fetch(`${BASE}/candidates/${id}/resume`, { method: "POST", headers: { ...NGROK_HEADERS }, body: form }).then((r) =>
         r.json()
       );
     },
     uploadTranscript: (id: string | number, file: File) => {
       const form = new FormData();
       form.append("file", file);
-      return fetch(`${BASE}/candidates/${id}/transcript`, { method: "POST", body: form }).then((r) =>
+      return fetch(`${BASE}/candidates/${id}/transcript`, { method: "POST", headers: { ...NGROK_HEADERS }, body: form }).then((r) =>
         r.json()
       );
     },
     uploadAvatar: (id: string | number, file: File) => {
       const form = new FormData();
       form.append("file", file);
-      return fetch(`${BASE}/candidates/${id}/avatar`, { method: "POST", body: form }).then((r) =>
+      return fetch(`${BASE}/candidates/${id}/avatar`, { method: "POST", headers: { ...NGROK_HEADERS }, body: form }).then((r) =>
         r.json()
       );
     },

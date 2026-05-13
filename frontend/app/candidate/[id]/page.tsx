@@ -35,7 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { api, type CandidateDetail, type KeyMoment } from "@/lib/api";
+import { api, BASE_URL, type CandidateDetail, type KeyMoment } from "@/lib/api";
 
 function ScoreRing({ value, color, size = 88 }: { value: number; color: string; size?: number }) {
   const r = size * 0.41;
@@ -226,7 +226,7 @@ export default function CandidateProfilePage() {
                 >
                   {candidate.avatar_path ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`http://35.200.131.204:8000${candidate.avatar_path}`} alt={candidate.name} className="w-full h-full object-cover" />
+                    <img src={`${BASE_URL}${candidate.avatar_path}`} alt={candidate.name} className="w-full h-full object-cover" />
                   ) : (
                     candidate.avatar
                   )}
