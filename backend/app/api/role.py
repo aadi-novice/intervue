@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.dependencies import get_db
@@ -9,6 +9,8 @@ from app.schemas.role import (
     RoleCreate,
     RoleResponse
 )
+
+from app.models.candidate import Candidate
 
 router = APIRouter(
     prefix="/roles",
@@ -48,3 +50,24 @@ async def list_roles(
     roles = db.query(Role).all()
 
     return roles
+
+
+@router.delete("/{role_id}", status_code=204)
+async def delete_role(
+    role_id: int,
+    db: Session = Depends(get_db)
+):
+    role = db.query(Role).filter(Role.id == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+
+    # Prevent deletion if candidates are linked
+    count = db.query(Candidate).filter(Candidate.role_id == role_id).count()
+    if count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot delete role: {count} candidate(s) are assigned to it. Reassign or remove them first."
+        )
+
+    db.delete(role)
+    db.commit()

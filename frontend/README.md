@@ -1,36 +1,101 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Intervue Frontend
 
-## Getting Started
+Next.js frontend for the Intervue recruiting workspace.
 
-First, run the development server:
+## Current Scope
+
+The frontend is wired to the FastAPI backend for the main local-development flows.
+
+Implemented pages:
+
+- landing page
+- dashboard
+- talent pool
+- kanban pipeline
+- candidate detail
+- add candidate
+- compare candidates
+- post role
+- settings placeholder
+
+Implemented interactions:
+
+- fetch live roles and candidates from the backend
+- create roles
+- create candidates
+- upload resume, transcript, and avatar files
+- trigger candidate analysis
+- update candidate stage from the pipeline
+- delete roles and candidates
+- compare two candidates within the same role
+
+## Stack
+
+- Next.js 16
+- React 19
+- Tailwind CSS 4
+- Framer Motion
+- Zustand
+- Radix-based UI primitives
+- Lucide icons
+
+## App Layout
+
+```text
+app/
+|-- dashboard/         dashboard, pipeline, talent pool
+|-- candidate/         create and detail pages
+|-- compare/           candidate comparison flow
+|-- roles/             role creation flow
+|-- settings/          placeholder settings UI
+`-- layout.tsx         app shell and shared layout
+```
+
+## API Integration
+
+The frontend uses `lib/api.ts` as a thin fetch client for:
+
+- roles
+- candidates
+- analysis
+
+Current assumption:
+
+- backend base URL is hardcoded to `http://localhost:8000`
+
+Start the backend before running the frontend or most pages will load without data.
+
+## Run Locally
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Start the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## UI Notes
 
-## Learn More
+- dashboard metrics are derived from live API data where available
+- pipeline uses drag-and-drop with persisted status updates
+- candidate detail can upload files, trigger analysis, and render structured resume + interview analysis results
+- comparison uses live candidate detail payloads, including analysis scores and parsed resume metadata
+- settings is present as a UI shell only and is not backed by API functionality
 
-To learn more about Next.js, take a look at the following resources:
+## Current Limitations
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- no environment-based frontend API configuration yet
+- no auth or protected routes
+- limited error handling/retry states
+- some UI copy still sounds more automated than the backend actually is; analysis is manually triggered today

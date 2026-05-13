@@ -1,224 +1,133 @@
 # Intervue
 
-Intervue is an AI-assisted recruiting platform in active development. The repository currently contains a functional FastAPI backend for role and candidate management, a PostgreSQL + `pgvector` database setup, and a polished Next.js frontend prototype that models the intended hiring workflow.
+Intervue is an AI-assisted recruiting workspace with a FastAPI backend, a PostgreSQL + `pgvector` database, and a Next.js frontend for role management, candidate intake, pipeline tracking, and interview analysis.
 
-This README documents the project as it exists today, with emphasis on the implemented backend surface and the current delivery status.
+The repository is no longer just a UI prototype. The frontend is wired to the backend for the main recruiting flows, and the backend now persists candidate analyses plus structured resume profiles.
 
-## Current Status
-
-The codebase is in an early product-build phase.
+## Current Product Surface
 
 Implemented today:
 
-- FastAPI application bootstrapped and running
-- PostgreSQL setup via Docker Compose
-- SQLAlchemy models and Alembic migration history
-- Role creation and role listing APIs
-- Candidate creation and candidate listing by role
-- Resume and transcript upload endpoints with local file persistence
-- Frontend product prototype covering dashboard, candidate intake, pipeline, and comparison flows
+- role creation, listing, and guarded deletion
+- candidate creation, listing, detail retrieval, stage updates, and deletion
+- resume, transcript, and avatar uploads with local file storage
+- manual AI analysis for candidates with both resume and transcript uploaded
+- lazy resume parsing with cached structured profile persistence
+- dashboard, talent pool, kanban pipeline, candidate profile, compare, role creation, candidate creation, and settings pages
 
-Partially scaffolded or not yet wired end-to-end:
+Still incomplete:
 
-- AI extraction, summarization, comparison, and embeddings modules
-- Analysis and interview domain models
-- Service layer orchestration
-- Persistent frontend-to-backend integration
-- Automated tests, auth, background jobs, and production hardening
+- authentication and multi-user workspace support
+- production-grade settings/config management
+- background jobs and async AI processing
+- object storage for uploaded files
+- automated test coverage
+- deployment hardening and observability
 
-## Product Direction
+## Architecture
 
-Intervue is being built as a recruiter workflow system that combines:
+### Backend
 
-- role intake and hiring pipeline management
-- candidate profile ingestion
-- resume and transcript processing
-- AI-assisted scoring, comparison, and insights
+- FastAPI
+- SQLAlchemy 2.x
+- Alembic
+- PostgreSQL 16 + `pgvector`
+- Python 3.11+
+- `uv`
+- OpenAI API for resume parsing and candidate analysis
+- PyMuPDF for PDF text extraction
 
-The current backend supports the foundational data model for roles and candidates. The frontend already reflects the intended UX for a richer AI recruitment workflow, but much of that experience is still backed by static/demo data rather than live API integrations.
+### Frontend
+
+- Next.js 16
+- React 19
+- Tailwind CSS 4
+- Framer Motion
+- Radix-based UI primitives
+- Zustand for pipeline state
 
 ## Repository Layout
 
 ```text
 intervue/
-|-- backend/                FastAPI application, database models, migrations
-|-- frontend/               Next.js application and product prototype UI
-|-- docker-compose.yml      Local PostgreSQL + pgvector setup
-`-- README.md               Project status and setup documentation
+|-- backend/                FastAPI app, models, migrations, AI flows
+|-- frontend/               Next.js recruiter workspace
+|-- docker-compose.yml      Local PostgreSQL + pgvector
+`-- README.md
 ```
 
-## Architecture Snapshot
-
-### Backend
-
-- Framework: FastAPI
-- ORM: SQLAlchemy 2.x
-- Migrations: Alembic
-- Database: PostgreSQL 16 with `pgvector`
-- Runtime: Python 3.11+
-- Dependency management: `uv`
-
-### Frontend
-
-- Framework: Next.js 16 / React 19
-- Styling: Tailwind CSS 4
-- UI/animation: custom components, Radix ecosystem, Framer Motion
-- State/data utilities: Zustand, TanStack Query
-
-## Backend Structure
-
-```text
-backend/
-|-- app/
-|   |-- ai/                 AI-related modules (currently scaffolded)
-|   |-- api/                FastAPI routers
-|   |-- db/                 SQLAlchemy base, session, dependencies
-|   |-- models/             ORM models
-|   |-- schemas/            Pydantic request/response schemas
-|   |-- services/           Business/service layer (mostly scaffolded)
-|   |-- utils/              Shared helpers such as file persistence
-|   `-- main.py             FastAPI entrypoint
-|-- alembic/                Migration environment and revisions
-|-- alembic.ini
-|-- pyproject.toml
-`-- uv.lock
-```
-
-## Implemented Backend Domains
+## Main Flows
 
 ### Roles
 
-The `roles` domain is implemented and supports:
-
-- creating a role
-- listing all roles
-- storing seniority metadata
-
-Persisted fields:
-
-- `id`
-- `name`
-- `experience_level`
-- `experience_required_years`
-- `created_at`
+- create a role
+- list roles
+- delete a role if no candidates are assigned
 
 ### Candidates
 
-The `candidates` domain is implemented and supports:
+- create a candidate with name, email, phone, and role
+- list all candidates in pipeline-friendly format
+- fetch full candidate detail
+- update candidate stage
+- delete candidate and cascaded analysis/profile records
+- upload resume PDF
+- upload transcript text file
+- upload avatar image
 
-- creating a candidate against an existing role
-- listing candidates for a specific role
-- uploading a resume file
-- uploading a transcript file
+### AI
 
-Persisted fields:
+- `POST /analysis/candidates/{candidate_id}` runs interview analysis
+- `GET /candidates/{candidate_id}` lazily parses the resume into a structured `resume_profiles` record if one does not exist yet
+- analysis currently requires both resume and transcript files
+- AI features require `OPENAI_API_KEY`
 
-- `id`
-- `name`
-- `email`
-- `status`
-- `role_id`
-- `resume_path`
-- `transcript_path`
-- `created_at`
+## API Snapshot
 
-## API Surface
+Routers currently mounted:
 
-Current API routers:
+- `GET /`
+- `POST /roles/`
+- `GET /roles/`
+- `DELETE /roles/{role_id}`
+- `POST /candidates/`
+- `GET /candidates/`
+- `GET /candidates/{candidate_id}`
+- `GET /candidates/role/{role_id}`
+- `PATCH /candidates/{candidate_id}/status`
+- `DELETE /candidates/{candidate_id}`
+- `POST /candidates/{candidate_id}/resume`
+- `POST /candidates/{candidate_id}/transcript`
+- `POST /candidates/{candidate_id}/avatar`
+- `GET /candidates/{candidate_id}/resume-text`
+- `GET /candidates/{candidate_id}/transcript-chunks`
+- `POST /analysis/candidates/{candidate_id}`
 
-- `/` health-style root route
-- `/roles`
-- `/candidates`
+Uploaded files are served from:
 
-### Root
-
-`GET /`
-
-Returns a simple service confirmation payload.
-
-### Roles
-
-`POST /roles/`
-
-Create a new role.
-
-Example request:
-
-```json
-{
-  "name": "Senior Backend Engineer",
-  "experience_level": "senior",
-  "experience_required_years": 5
-}
-```
-
-`GET /roles/`
-
-Returns all stored roles.
-
-### Candidates
-
-`POST /candidates/`
-
-Create a candidate linked to an existing role.
-
-Example request:
-
-```json
-{
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "role_id": 1
-}
-```
-
-`GET /candidates/role/{role_id}`
-
-Returns all candidates associated with the given role.
-
-`POST /candidates/{candidate_id}/resume`
-
-Uploads a resume file and stores its local path on the candidate record.
-
-`POST /candidates/{candidate_id}/transcript`
-
-Uploads a transcript file and stores its local path on the candidate record.
-
-## Database and Migrations
-
-The repository includes Docker Compose for local PostgreSQL with `pgvector`.
-
-Defined database container:
-
-- image: `pgvector/pgvector:pg16`
-- database: `intervue_db`
-- user: `intervue`
-
-Alembic revision history shows the schema evolving through:
-
-- initial roles and candidates tables
-- candidate status and timestamps
-- role experience fields
-
-Some migration files are currently placeholders with `pass`, which is acceptable for an in-progress codebase but should be cleaned up before a production release.
+- `/storage`
 
 ## Local Development
 
-### 1. Start the database
+### 1. Start PostgreSQL
 
-From the repository root:
+From the repo root:
 
 ```bash
 docker compose up -d
 ```
 
-### 2. Configure backend environment
+### 2. Configure backend env
 
-Create `backend/.env` with:
+Create `backend/.env`:
 
 ```env
 DATABASE_URL=postgresql://intervue:intervue123@localhost:5432/intervue_db
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
 ```
+
+`OPENAI_MODEL` is optional; the backend defaults to `gpt-4.1-mini`.
 
 ### 3. Install backend dependencies
 
@@ -250,9 +159,9 @@ Alternative:
 uv run uvicorn app.main:app --reload
 ```
 
-The API will then be available locally at:
+Backend URLs:
 
-- `http://127.0.0.1:8000`
+- API: `http://127.0.0.1:8000`
 - Swagger UI: `http://127.0.0.1:8000/docs`
 
 ### 6. Run the frontend
@@ -264,51 +173,44 @@ npm install
 npm run dev
 ```
 
-## Current Engineering Notes
+Frontend URL:
 
-The backend is intentionally simple right now. A few implementation details are worth calling out:
+- `http://localhost:3000`
 
-- File uploads are written to local storage directories under `storage/`
-- Database sessions are managed through FastAPI dependency injection
-- The API currently performs CRUD-style operations directly in router modules
-- Service and AI layers exist in the repository, but most of those files are still empty scaffolding
+Note: the frontend API client is currently hardcoded to `http://localhost:8000`.
 
-This means the system is best described as a working backend foundation, not a production-complete platform.
+## Database Notes
 
-## Known Gaps
+The schema now includes:
 
-The following items are still missing or incomplete:
+- `roles`
+- `candidates`
+- `analyses`
+- `resume_profiles`
 
-- authentication and authorization
-- request validation beyond the current schema layer
-- centralized settings/config management
-- structured logging and observability
-- test coverage
-- background processing for AI/file workflows
-- cloud/object storage for uploaded documents
-- robust error handling and transactional service boundaries
-- frontend integration against live backend endpoints
-- implemented AI ranking, extraction, and comparison pipeline
+Candidate records also store:
 
-## Recommended Next Milestones
+- `phone`
+- `status`
+- `resume_path`
+- `transcript_path`
+- `avatar_path`
 
-To move the backend toward production readiness, the highest-leverage next steps are:
+Analysis records store:
 
-1. Introduce a proper configuration layer and environment settings module.
-2. Move router logic into service functions with clearer transaction boundaries.
-3. Implement analysis and interview persistence models fully.
-4. Replace local file storage with object storage abstraction.
-5. Wire the frontend forms to the live backend APIs.
-6. Add test coverage for migrations, schemas, and API routes.
-7. Implement the AI workflow incrementally behind explicit service boundaries.
+- summary
+- strengths and weaknesses
+- technical, communication, and confidence scores
+- key moments
+- resume-to-transcript alignment findings
 
-## Positioning Summary
+## Important Behavior
 
-Intervue already has the shape of a real recruiting platform:
+- Candidate analysis is manually triggered through the analysis endpoint or the candidate detail UI.
+- Resume parsing is triggered on first candidate-detail fetch when a resume exists but no cached `resume_profiles` row exists yet.
+- Uploaded files are stored on the local filesystem under `storage/`.
+- CORS is currently configured for `http://localhost:3000`.
 
-- a credible UI prototype
-- a working database-backed FastAPI core
-- a schema and migration foundation
-- early hooks for AI-assisted evaluation
+## Status Summary
 
-At the same time, it is still accurately a work-in-progress backend foundation rather than a finished production system. The current implementation is strong enough for continued feature development, integration work, and architecture hardening.
+Intervue now has a working end-to-end recruiting workflow for local development: create roles, add candidates, upload documents, run AI analysis, inspect candidate profiles, move candidates through the pipeline, and compare candidates within a role. The main remaining work is around production readiness rather than basic feature existence.

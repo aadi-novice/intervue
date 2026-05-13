@@ -7,8 +7,10 @@ requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.4",
     "fastapi[standard]",
+    "openai>=2.36.0",
     "pgvector>=0.4.2",
     "psycopg2-binary>=2.9.12",
+    "pymupdf>=1.27.2.3",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.27",
     "ruff>=0.15.12",

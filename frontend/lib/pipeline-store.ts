@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { api, type PipelineCandidate } from "./api";
 
 export type StageId = "applied" | "screening" | "interview" | "offer" | "hired";
 
@@ -6,6 +7,7 @@ export interface Candidate {
   id: string;
   name: string;
   role: string;
+  role_id: number;
   score: number;
   avatar: string;
   color: string;
@@ -28,35 +30,62 @@ export const STAGES: Stage[] = [
   { id: "hired",     label: "Hired",               color: "#a78bfa" },
 ];
 
-const INITIAL_CANDIDATES: Candidate[] = [
-  { id: "rk",  name: "Ravi Kapoor",      role: "Rust Engineer",      score: 71, avatar: "RK", color: "#8c909f", days: 1,  ai: false, stage: "applied"   },
-  { id: "lm",  name: "Lena Müller",      role: "Rust Engineer",      score: 68, avatar: "LM", color: "#8c909f", days: 2,  ai: false, stage: "applied"   },
-  { id: "oh",  name: "Omar Hassan",      role: "ML Ops",             score: 74, avatar: "OH", color: "#8c909f", days: 0,  ai: true,  stage: "applied"   },
-  { id: "yt",  name: "Yuki Tanaka",      role: "ML Ops",             score: 93, avatar: "YT", color: "#10b981", days: 3,  ai: true,  stage: "screening" },
-  { id: "an",  name: "Asel Nurlanovna",  role: "Rust Engineer",      score: 81, avatar: "AN", color: "#f59e0b", days: 4,  ai: false, stage: "screening" },
-  { id: "dc",  name: "David Chen",       role: "Product Designer",   score: 79, avatar: "DC", color: "#3b82f6", days: 2,  ai: true,  stage: "screening" },
-  { id: "ps",  name: "Priya Sharma",     role: "Rust Engineer",      score: 96, avatar: "PS", color: "#3b82f6", days: 7,  ai: true,  stage: "interview" },
-  { id: "mw",  name: "Marcus Webb",      role: "Product Designer",   score: 89, avatar: "MW", color: "#a78bfa", days: 8,  ai: false, stage: "interview" },
-  { id: "sr",  name: "Sofia Reyes",      role: "ML Ops",             score: 92, avatar: "SR", color: "#10b981", days: 15, ai: true,  stage: "offer"     },
-  { id: "jp",  name: "Jin Park",         role: "Rust Engineer",      score: 98, avatar: "JP", color: "#a78bfa", days: 21, ai: true,  stage: "hired"     },
-];
+function toCandidate(c: PipelineCandidate): Candidate {
+  return {
+    id: c.id,
+    name: c.name,
+    role: c.role,
+    role_id: c.role_id,
+    score: c.score,
+    avatar: c.avatar,
+    color: c.color,
+    days: c.days,
+    ai: c.ai,
+    stage: (c.stage as StageId) ?? "applied",
+  };
+}
 
 interface PipelineState {
   candidates: Candidate[];
-  moveCandidate: (candidateId: string, toStage: StageId) => void;
+  loading: boolean;
+  error: string | null;
+
+  fetchCandidates: () => Promise<void>;
+  moveCandidate: (candidateId: string, toStage: StageId) => Promise<void>;
   getStageCount: (stageId: StageId) => number;
   getCandidatesByStage: (stageId: StageId) => Candidate[];
 }
 
 export const usePipelineStore = create<PipelineState>((set, get) => ({
-  candidates: INITIAL_CANDIDATES,
+  candidates: [],
+  loading: false,
+  error: null,
 
-  moveCandidate: (candidateId, toStage) =>
+  fetchCandidates: async () => {
+    set({ loading: true, error: null });
+    try {
+      const data = await api.candidates.list();
+      set({ candidates: data.map(toCandidate), loading: false });
+    } catch (e) {
+      set({ error: (e as Error).message, loading: false });
+    }
+  },
+
+  moveCandidate: async (candidateId, toStage) => {
+    // Optimistic update — move locally first so drag feels instant
     set((state) => ({
       candidates: state.candidates.map((c) =>
         c.id === candidateId ? { ...c, stage: toStage } : c
       ),
-    })),
+    }));
+    // Persist to backend
+    try {
+      await api.candidates.updateStatus(candidateId, toStage);
+    } catch (e) {
+      console.error("Failed to persist stage change:", e);
+      // Optionally revert here
+    }
+  },
 
   getStageCount: (stageId) =>
     get().candidates.filter((c) => c.stage === stageId).length,
