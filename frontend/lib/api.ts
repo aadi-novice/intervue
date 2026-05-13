@@ -1,4 +1,4 @@
-const BASE = "http://35.200.131.204:8000";
+const BASE = " https://pleading-semifinal-flyer.ngrok-free.dev";
 //NEXT_PUBLIC_API_URL=http://35.200.131.204:8000
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
