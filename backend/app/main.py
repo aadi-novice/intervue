@@ -11,7 +11,7 @@ from app.api.analysis import (
 
 app = FastAPI(
     title="Intervue API",
-    version="0.0.2"
+    version="1.0.0"
 )
 
 app.add_middleware(
