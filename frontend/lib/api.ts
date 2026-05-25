@@ -1,6 +1,6 @@
 export const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??
-  "https://pleading-semifinal-flyer.ngrok-free.dev";
+  "http://localhost:8000"; // "https://pleading-semifinal-flyer.ngrok-free.dev";
 
 const BASE = BASE_URL;
 

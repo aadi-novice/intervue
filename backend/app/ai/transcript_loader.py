@@ -1,11 +1,13 @@
+from app.core.storage import download_text
+
+
 def load_transcript(
-    file_path: str
-):
+    blob_url: str,
+    encoding: str = "utf-8",
+) -> str:
+    """
+    Load transcript text from Azure Blob Storage.
 
-    with open(
-        file_path,
-        "r",
-        encoding="utf-8"
-    ) as file:
-
-        return file.read()
+    `blob_url` is the public HTTPS URL returned when the transcript was uploaded.
+    """
+    return download_text(blob_url, encoding=encoding)

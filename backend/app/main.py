@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import os
 
 from app.api.role import router as role_router
 from app.api.candidate import router as candidate_router
@@ -33,9 +31,3 @@ async def root():
 app.include_router(role_router)
 app.include_router(candidate_router)
 app.include_router(analysis_router)
-
-# Serve uploaded files (avatars, resumes, transcripts)
-os.makedirs("storage/avatars", exist_ok=True)
-os.makedirs("storage/resumes", exist_ok=True)
-os.makedirs("storage/transcripts", exist_ok=True)
-app.mount("/storage", StaticFiles(directory="storage"), name="storage")

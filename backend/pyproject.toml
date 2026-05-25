@@ -27,5 +27,53 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
+    "pytest-cov>=7.1.0",
     "pytest-mock>=3.15.1",
+]
+
+[tool.pytest.ini_options]
+# ── Paths ───────────────────────────────────────────────────────────────────
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# ── Async ───────────────────────────────────────────────────────────────────
+# Automatically detect async test functions so @pytest.mark.asyncio isn't
+# needed on every async test.
+asyncio_mode = "auto"
+
+# ── Markers ─────────────────────────────────────────────────────────────────
+markers = [
+    "slow: marks tests as slow (e.g. AI service calls, integration)",
+    "unit: quick unit tests with no external dependencies",
+    "integration: tests that exercise multiple layers (API, DB)",
+    "model: database model tests",
+    "schema: Pydantic schema validation tests",
+    "service: business logic service tests",
+]
+
+# ── Coverage ────────────────────────────────────────────────────────────────
+# Run with: uv run pytest --cov=app --cov-report=term-missing --cov-report=html
+# or just:  uv run pytest --cov=app
+addopts = ""
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/__init__.py",
+    "*/migrations/*",
+    "*/alembic/*",
+    "*/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 0          # Set to a percentage (e.g. 60) once baseline is established
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == \"__main__\":",
+    "raise NotImplementedError",
 ]

@@ -26,10 +26,12 @@ function ScoreBar({ value, color }: { value: number; color: string }) {
 export default function DashboardPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [candidates, setCandidates] = useState<PipelineCandidate[]>([]);
+  const [today, setToday] = useState("");
 
   useEffect(() => {
     api.roles.list().then(setRoles).catch(() => {});
     api.candidates.list().then(setCandidates).catch(() => {});
+    setToday(new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }));
   }, []);
 
   // Compute stats from live data
@@ -65,7 +67,6 @@ export default function DashboardPage() {
     { label: "Avg. Time-to-Hire", value: "—",                   sub: "Calculated after first hire", icon: Clock,     color: "#f59e0b" },
   ];
 
-  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
   return (
     <div className="p-6 space-y-6 fade-in">
