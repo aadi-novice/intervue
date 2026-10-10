@@ -1,92 +1,172 @@
-"""Analysis service with mocked AI dependencies."""
+"""Analysis service: segment-cited analysis, evidence enforcement, notes."""
 
 from unittest.mock import patch
 
 import pytest
 
+from app.ai.schemas import (
+    ClaimCheckOut,
+    ClaimComparison,
+    CitedPoint,
+    InterviewAnalysisOut,
+    InterviewNotesOut,
+    KeyMoment,
+)
 from app.core.errors import Invalid, NotFound
-from app.models.analysis import Analysis
-from app.services.analysis_service import analyze_candidate
-from tests.factories import make_candidate, make_role
+from app.models.interview import InterviewNote
+from app.services import analysis_service as svc
+from tests.factories import SEGMENTS, make_candidate, make_interview, make_role
 
 P = "app.services.analysis_service"
-SUMMARY = {
-    "summary": "Strong candidate with good technical skills.",
-    "strengths": ["Strong problem-solving", "Clear communication"],
-    "weaknesses": ["Could improve system design"],
-    "technical_score": 85,
-    "communication_score": 80,
-    "confidence_score": 75,
-    "key_moments": [{"moment": "Solved algorithm", "signal": "positive"}],
-    "hiring_recommendation": "Hire",
-}
-COMPARE = {"comparisons": [{"claim": "Python expert", "result": "Confirmed", "severity": "low"}]}
-CHUNKS = [{"timestamp": "10:30", "speaker": "Alice", "text": "I built it in Python"}]
 
 
-@patch(f"{P}.compare_resume_and_transcript", return_value=COMPARE)
-@patch(f"{P}.generate_candidate_analysis", return_value=SUMMARY)
-@patch(f"{P}.chunk_transcript", return_value=CHUNKS)
-@patch(f"{P}.load_transcript", return_value="raw transcript")
+@pytest.fixture()
+def setup(db_session, org):
+    role = make_role(db_session, org.id)
+    cand = make_candidate(db_session, org.id, role.id, resume_path="k/r.pdf")
+    iv = make_interview(db_session, org.id, cand, SEGMENTS)
+    seg = {s.text: s.id for s in iv.segments}
+    return cand, iv, seg
+
+
+def _analysis(seg, **over):
+    cand_line = seg["I built a compiler in Rust for two years."]
+    interviewer_line = seg["Tell me about your Rust experience."]
+    base = dict(
+        summary="Hire: solid Rust.",
+        strengths=[
+            CitedPoint(text="Built a compiler", segment_ids=[cand_line]),
+            CitedPoint(text="Cites interviewer line only", segment_ids=[interviewer_line]),
+            CitedPoint(text="Hallucinated id", segment_ids=[99999]),
+            CitedPoint(text="No evidence at all", segment_ids=[]),
+        ],
+        weaknesses=[CitedPoint(text="Avoided lifetimes", segment_ids=[seg["Mostly arenas, honestly I avoided them."]])],
+        key_moments=[
+            KeyMoment(moment="Compiler project", signal="positive", segment_id=cand_line),
+            KeyMoment(moment="Fake moment", signal="negative", segment_id=424242),
+        ],
+        technical_score=140,
+        communication_score=-5,
+        confidence_score=70,
+        hiring_recommendation="Hire",
+    )
+    base.update(over)
+    return InterviewAnalysisOut(**base)
+
+
+def _claims(seg):
+    cand_line = seg["I built a compiler in Rust for two years."]
+    return ClaimCheckOut(
+        comparisons=[
+            ClaimComparison(claim="Rust expert", resume_quote="Rust", verdict="verified",
+                            explanation="Said so", severity="low", segment_ids=[cand_line]),
+            ClaimComparison(claim="Led team of 10", resume_quote="led 10", verdict="contradicted",
+                            explanation="No support cited", severity="high", segment_ids=[]),
+            ClaimComparison(claim="Uses Go", resume_quote="Go", verdict="verified",
+                            explanation="Interviewer said it", severity="low",
+                            segment_ids=[seg["Tell me about your Rust experience."]]),
+            ClaimComparison(claim="Python", resume_quote="Python", verdict="unclear",
+                            explanation="Not covered", severity="low", segment_ids=[]),
+        ]
+    )
+
+
 @patch(f"{P}.extract_text_from_pdf", return_value="Resume text")
-def test_success_persists_analysis_scoped_to_org(
-    mock_extract, mock_load, mock_chunk, mock_summarize, mock_compare, db_session, org
-):
+def test_analysis_only_keeps_evidence_backed_points(m_pdf, db_session, org, setup):
+    cand, iv, seg = setup
+    with patch(f"{P}.generate_interview_analysis", return_value=_analysis(seg)) as gen, patch(
+        f"{P}.check_resume_claims", return_value=_claims(seg)
+    ):
+        a = svc.analyze_interview(db_session, org.id, iv.id)
+
+    # transcript sent to the model carries ids, times, speakers and kinds
+    sent = gen.call_args.args[1]
+    assert f"[#{seg['I built a compiler in Rust for two years.']} 0:10 Alice (CANDIDATE)]" in sent
+    assert gen.call_args.args[2] == org.id
+
+    assert [p["text"] for p in a.strengths] == ["Built a compiler"]  # interviewer/invalid/none dropped
+    assert a.strengths[0]["segment_ids"] == [seg["I built a compiler in Rust for two years."]]
+    assert [p["text"] for p in a.weaknesses] == ["Avoided lifetimes"]
+    assert len(a.key_moments) == 1 and a.key_moments[0]["timestamp_ms"] == 10_000
+    assert (a.technical_score, a.communication_score) == (100, 0)  # clamped
+    assert (a.interview_id, a.candidate_id, a.org_id, a.role_id) == (iv.id, cand.id, org.id, cand.role_id)
+    assert a.prompt_version == "analysis_v2"
+
+
+@patch(f"{P}.extract_text_from_pdf", return_value="Resume text")
+def test_claim_verdicts_without_candidate_evidence_are_downgraded(m_pdf, db_session, org, setup):
+    cand, iv, seg = setup
+    with patch(f"{P}.generate_interview_analysis", return_value=_analysis(seg)), patch(
+        f"{P}.check_resume_claims", return_value=_claims(seg)
+    ):
+        a = svc.analyze_interview(db_session, org.id, iv.id)
+
+    by_claim = {c["claim"]: c for c in a.resume_alignment}
+    assert by_claim["Rust expert"]["verdict"] == "verified"
+    assert by_claim["Rust expert"]["segment_ids"]
+    assert by_claim["Led team of 10"]["verdict"] == "unclear"  # contradicted but nothing cited
+    assert by_claim["Uses Go"]["verdict"] == "unclear"  # only the INTERVIEWER's line was cited
+    assert by_claim["Uses Go"]["segment_ids"] == []
+    assert by_claim["Python"]["verdict"] == "unclear"
+    assert by_claim["Rust expert"]["result"] == "Said so"  # legacy field for older clients
+
+
+@patch(f"{P}.extract_text_from_pdf", return_value="Resume text")
+def test_unmapped_speakers_block_analysis(m_pdf, db_session, org):
     role = make_role(db_session, org.id)
-    cand = make_candidate(
-        db_session, org.id, role.id, resume_path="k/r.pdf", transcript_path="k/t.txt"
-    )
-
-    analysis = analyze_candidate(db_session, org.id, cand.id)
-
-    assert isinstance(analysis, Analysis)
-    assert analysis.org_id == org.id and analysis.role_id == role.id
-    assert analysis.technical_score == 85
-    assert analysis.hiring_recommendation == "Hire"
-    assert len(analysis.resume_alignment) == 1
-    mock_extract.assert_called_once_with("k/r.pdf")
-    mock_load.assert_called_once_with("k/t.txt")
-    # The LLM gets the formatted transcript (timestamps + speakers) and the org for cost tracking
-    assert "[10:30] Alice: I built it in Python" in mock_summarize.call_args.args[1]
-    assert mock_summarize.call_args.args[2] == org.id
-    assert mock_compare.call_args.args[2] == org.id
-
-
-def test_not_found(db_session, org):
-    with pytest.raises(NotFound):
-        analyze_candidate(db_session, org.id, 9999)
-
-
-def test_other_orgs_candidate_is_not_found(db_session, org, other_org):
-    role = make_role(db_session, org.id)
-    cand = make_candidate(
-        db_session, org.id, role.id, resume_path="k/r.pdf", transcript_path="k/t.txt"
-    )
-    with pytest.raises(NotFound):
-        analyze_candidate(db_session, other_org.id, cand.id)
+    cand = make_candidate(db_session, org.id, role.id, resume_path="k/r.pdf")
+    iv = make_interview(db_session, org.id, cand, [("Speaker 1", "unknown", "hello"), ("Speaker 2", "unknown", "hi")])
+    with pytest.raises(Invalid) as e:
+        svc.analyze_interview(db_session, org.id, iv.id)
+    assert e.value.code == "speakers_unmapped"
 
 
 def test_no_resume(db_session, org):
     role = make_role(db_session, org.id)
-    cand = make_candidate(db_session, org.id, role.id, transcript_path="k/t.txt")
+    cand = make_candidate(db_session, org.id, role.id)
+    iv = make_interview(db_session, org.id, cand, SEGMENTS)
     with pytest.raises(Invalid, match="Resume not uploaded"):
-        analyze_candidate(db_session, org.id, cand.id)
+        svc.analyze_interview(db_session, org.id, iv.id)
 
 
 def test_no_transcript(db_session, org):
     role = make_role(db_session, org.id)
     cand = make_candidate(db_session, org.id, role.id, resume_path="k/r.pdf")
-    with pytest.raises(Invalid, match="Transcript not uploaded"):
-        analyze_candidate(db_session, org.id, cand.id)
+    iv = make_interview(db_session, org.id, cand, [])
+    with pytest.raises(Invalid) as e:
+        svc.analyze_interview(db_session, org.id, iv.id)
+    assert e.value.code == "no_transcript"
 
 
-@patch(f"{P}.chunk_transcript", return_value=[])
-@patch(f"{P}.load_transcript", return_value="garbage")
+def test_other_orgs_interview_not_found(db_session, org, other_org, setup):
+    _, iv, _ = setup
+    with pytest.raises(NotFound):
+        svc.analyze_interview(db_session, other_org.id, iv.id)
+
+
+NOTES = InterviewNotesOut(
+    summary="Discussed Rust.", key_points=["Built a compiler"], topics=["Rust"],
+    follow_ups=["Ask about lifetimes in depth"],
+)
+
+
+def test_generate_notes_upserts_single_row(db_session, org, setup):
+    _, iv, _ = setup
+    with patch(f"{P}.generate_interview_notes", return_value=NOTES) as gen:
+        svc.generate_notes(db_session, org.id, iv.id)
+        svc.generate_notes(db_session, org.id, iv.id)
+    assert db_session.query(InterviewNote).filter_by(interview_id=iv.id).count() == 1
+    note = db_session.query(InterviewNote).one()
+    assert note.follow_ups == ["Ask about lifetimes in depth"] and note.org_id == org.id
+    assert gen.call_args.args[1] == "Engineer"  # role name is passed to the prompt
+
+
 @patch(f"{P}.extract_text_from_pdf", return_value="Resume text")
-def test_unparseable_transcript(m_extract, m_load, m_chunk, db_session, org):
-    role = make_role(db_session, org.id)
-    cand = make_candidate(
-        db_session, org.id, role.id, resume_path="k/r.pdf", transcript_path="k/t.txt"
-    )
-    with pytest.raises(Invalid, match="parse transcript"):
-        analyze_candidate(db_session, org.id, cand.id)
+def test_notes_failure_does_not_block_analysis(m_pdf, db_session, org, setup):
+    _, iv, seg = setup
+    with patch(f"{P}.generate_interview_notes", side_effect=RuntimeError("notes down")), patch(
+        f"{P}.generate_interview_analysis", return_value=_analysis(seg)
+    ), patch(f"{P}.check_resume_claims", return_value=_claims(seg)):
+        a = svc.process_interview(db_session, org.id, iv.id)
+    assert a is not None and a.interview_id == iv.id
+    assert db_session.query(InterviewNote).count() == 0

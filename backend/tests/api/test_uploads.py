@@ -103,11 +103,28 @@ def test_replacing_a_resume_deletes_the_old_object(s3, client, cand):
     assert k1 != k2 and not storage.exists(k1) and storage.exists(k2)
 
 
-def test_deleting_candidate_deletes_blobs(s3, client, cand):
-    key = _up(client, cand.id, "transcript", b"0:01 - Bob\nhi\n", "t.txt", "text/plain").json()["file_path"]
-    assert storage.exists(key)
+def test_deleting_candidate_deletes_all_blobs(s3, client, cand, db_session, org):
+    from app.models.interview import Recording
+    from tests.factories import make_interview
+
+    client.post(
+        f"/candidates/{cand.id}/transcript",
+        files={"file": ("t.txt", b"0:01 - Bob\nhi\n", "text/plain")},
+    )
+    resume = _up(client, cand.id, "resume", PDF, "r.pdf", "application/pdf").json()["file_path"]
+    transcript = client.get(f"/candidates/{cand.id}").json()["transcript_path"]
+    iv = make_interview(db_session, org.id, cand)
+    rec_key = storage.make_key(org.id, "recordings", "opus")
+    storage.put(rec_key, b"audio", "audio/ogg")
+    db_session.add(
+        Recording(org_id=org.id, interview_id=iv.id, blob_path=rec_key, mime_type="audio/ogg")
+    )
+    db_session.commit()
+    assert all(storage.exists(k) for k in (resume, transcript, rec_key))
+
     assert client.delete(f"/candidates/{cand.id}").status_code == 204
-    assert not storage.exists(key)
+
+    assert not any(storage.exists(k) for k in (resume, transcript, rec_key))
 
 
 def test_resume_parse_failure_does_not_break_upload(s3, client, cand):

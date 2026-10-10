@@ -23,6 +23,8 @@ class AnalysisResponse(BaseModel):
     resume_alignment: list
 
     candidate_id: int
+    interview_id: int | None = None
+    hiring_recommendation: str | None = None
 
     created_at: datetime
 

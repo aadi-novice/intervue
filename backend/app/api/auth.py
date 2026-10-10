@@ -35,7 +35,7 @@ def _set_cookies(response: Response, access: str, refresh: str) -> None:
     )
     response.set_cookie(
         "refresh_token", refresh, max_age=settings.jwt_refresh_ttl_days * 86400,
-        path="/auth", **common,
+        path=settings.refresh_cookie_path, **common,
     )
     response.set_cookie(
         "csrf_token", security.new_csrf_token(), max_age=settings.jwt_refresh_ttl_days * 86400,
@@ -45,7 +45,7 @@ def _set_cookies(response: Response, access: str, refresh: str) -> None:
 
 
 def _clear_cookies(response: Response) -> None:
-    for name, path in (("access_token", "/"), ("refresh_token", "/auth"), ("csrf_token", "/")):
+    for name, path in (("access_token", "/"), ("refresh_token", settings.refresh_cookie_path), ("csrf_token", "/")):
         response.delete_cookie(name, path=path, domain=settings.cookie_domain)
 
 

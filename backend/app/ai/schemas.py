@@ -65,15 +65,28 @@ class ResumeProfileOut(BaseModel):
 
 
 # ── Interview analysis ────────────────────────────────────────────────────────
+class CitedPoint(BaseModel):
+    text: str
+    segment_ids: list[int]
+
+
 class KeyMoment(BaseModel):
     moment: str
-    signal: str
+    signal: Literal["positive", "negative", "neutral"]
+    segment_id: int
+
+
+class InterviewNotesOut(BaseModel):
+    summary: str
+    key_points: list[str]
+    topics: list[str]
+    follow_ups: list[str]
 
 
 class InterviewAnalysisOut(BaseModel):
     summary: str
-    strengths: list[str]
-    weaknesses: list[str]
+    strengths: list[CitedPoint]
+    weaknesses: list[CitedPoint]
     key_moments: list[KeyMoment]
     technical_score: int
     communication_score: int
@@ -83,8 +96,11 @@ class InterviewAnalysisOut(BaseModel):
 
 class ClaimComparison(BaseModel):
     claim: str
-    result: str
+    resume_quote: str
+    verdict: Literal["verified", "unclear", "contradicted"]
+    explanation: str
     severity: Literal["low", "medium", "high"]
+    segment_ids: list[int]
 
 
 class ClaimCheckOut(BaseModel):

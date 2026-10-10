@@ -82,6 +82,8 @@ class AnalysisSummary(BaseModel):
     communication_score: int
     confidence_score: int
     aggregate_score: int          # pre-computed average for convenience
+    interview_id: Optional[int] = None
+    hiring_recommendation: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -40,6 +40,26 @@ def latest(db: Session, org_id: int, kind: str, entity_type: str, entity_id: int
     )
 
 
+def latest_for_candidate_interviews(db: Session, org_id: int, candidate_id: int) -> Job | None:
+    """Newest analysis job across all of the candidate's interviews."""
+    from app.models.interview import Interview
+
+    ids = db.query(Interview.id).filter(
+        Interview.org_id == org_id, Interview.candidate_id == candidate_id
+    )
+    return (
+        db.query(Job)
+        .filter(
+            Job.org_id == org_id,
+            Job.kind == "analysis",
+            Job.entity_type == "interview",
+            Job.entity_id.in_(ids),
+        )
+        .order_by(Job.id.desc())
+        .first()
+    )
+
+
 def set_status(
     db: Session, job_id: int, status: str, error: str | None = None, result: dict | None = None
 ) -> None:

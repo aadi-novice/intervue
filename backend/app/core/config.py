@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     jwt_refresh_ttl_days: int = 30
     cookie_secure: bool = False
     cookie_domain: str | None = None
+    # Path the refresh cookie is scoped to. Behind the Next.js /api proxy use /api/auth.
+    refresh_cookie_path: str = "/auth"
     token_encryption_key: str = ""
 
     # OAuth

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Query, Session, selectinload
 
 from app.api.deps import OrgContext
 from app.core import storage
-from app.core.errors import Conflict, NotFound
+from app.core.errors import Conflict, Invalid, NotFound
 from app.models.analysis import Analysis
 from app.models.candidate import Candidate
 from app.models.interview import Interview, InterviewParticipant
@@ -25,7 +25,7 @@ from app.schemas.candidate import (
 )
 from app.utils.file_handler import save_file
 
-_ATTR = {"resumes": "resume_path", "transcripts": "transcript_path", "avatars": "avatar_path"}
+_ATTR = {"resumes": "resume_path", "avatars": "avatar_path"}
 
 
 def _query(db: Session, ctx: OrgContext) -> Query:
@@ -140,6 +140,13 @@ def update_status(db: Session, ctx: OrgContext, candidate_id: int, status: str) 
 def delete_candidate(db: Session, ctx: OrgContext, candidate_id: int) -> None:
     c = get_candidate(db, ctx, candidate_id)
     keys = [k for k in (c.resume_path, c.transcript_path, c.avatar_path) if k]
+    from app.models.interview import Interview, Recording
+
+    interview_ids = db.query(Interview.id).filter(Interview.candidate_id == c.id)
+    keys += [
+        r.blob_path
+        for r in db.query(Recording).filter(Recording.interview_id.in_(interview_ids))
+    ]
     db.delete(c)
     db.commit()
     for k in keys:  # deletion removes blobs too
@@ -171,6 +178,8 @@ def detail(db: Session, ctx: OrgContext, candidate_id: int) -> CandidateDetailRe
             communication_score=latest.communication_score,
             confidence_score=latest.confidence_score,
             aggregate_score=_score(latest),
+            interview_id=latest.interview_id,
+            hiring_recommendation=latest.hiring_recommendation,
             created_at=latest.created_at,
         )
     profile = None
@@ -206,7 +215,7 @@ def detail(db: Session, ctx: OrgContext, candidate_id: int) -> CandidateDetailRe
 
 
 def upload(db: Session, ctx: OrgContext, candidate_id: int, file: UploadFile, kind: str) -> str:
-    """kind: resumes | transcripts | avatars. Replaces (and deletes) any previous object."""
+    """kind: resumes | avatars. Replaces (and deletes) any previous object."""
     c = get_candidate(db, ctx, candidate_id)
     attr = _ATTR[kind]
     key = save_file(file, kind, ctx.org_id)
@@ -227,3 +236,47 @@ def enqueue_resume_parse(org_id: int, candidate_id: int) -> None:
     from app.worker.tasks.resume import parse_resume
 
     parse_resume.delay(org_id, candidate_id)
+
+
+def upload_transcript_as_interview(
+    db: Session, ctx: OrgContext, candidate_id: int, file: UploadFile
+) -> tuple[int, int]:
+    """Legacy candidate-level transcript upload: becomes an interview(platform=upload)."""
+    from app.models.interview import Interview, InterviewParticipant
+    from app.services import interview_service
+
+    c = get_candidate(db, ctx, candidate_id)
+    name = file.filename or "transcript.txt"
+    if not name.lower().endswith(interview_service.TRANSCRIPT_EXTS):
+        raise Invalid(
+            "Unsupported file type. Upload a transcript (.txt, .vtt, .srt, .docx).",
+            "unsupported_file",
+        )
+    file.file.seek(0)
+    data = file.file.read(interview_service.MAX_TRANSCRIPT_BYTES + 1)
+    iv = Interview(
+        org_id=ctx.org_id,
+        candidate_id=c.id,
+        role_id=c.role_id,
+        title="Uploaded transcript",
+        platform="upload",
+        status="scheduled",
+        created_by_user_id=ctx.user.id,
+    )
+    db.add(iv)
+    db.flush()
+    db.add(
+        InterviewParticipant(
+            interview_id=iv.id, display_name=c.name, email=c.email, kind="candidate"
+        )
+    )
+    db.flush()
+    db.refresh(iv)
+    try:
+        count = interview_service.attach_transcript(
+            db, ctx, iv, name, data, file.content_type or ""
+        )
+    except Exception:
+        db.rollback()
+        raise
+    return iv.id, count

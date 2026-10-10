@@ -4,11 +4,12 @@ from app.worker.celery_app import celery_app
 
 
 @celery_app.task(bind=True, name="analysis.run", max_retries=MAX_RETRIES)
-def run_analysis_task(self, org_id: int, candidate_id: int, job_id: int):
+def run_analysis_task(self, org_id: int, interview_id: int, job_id: int):
+    """Interview notes + analysis. `job_id` is the status resource the UI polls."""
     with session_scope() as db:
         job_service.set_status(db, job_id, "running")
         try:
-            analysis = analysis_service.analyze_candidate(db, org_id, candidate_id)
+            analysis = analysis_service.process_interview(db, org_id, interview_id)
         except NO_RETRY as exc:
             db.rollback()
             job_service.set_status(db, job_id, "failed", error=exc.detail)

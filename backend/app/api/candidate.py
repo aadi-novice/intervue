@@ -5,8 +5,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.ai.extractor import extract_text_from_pdf
-from app.ai.transcript_loader import load_transcript
-from app.ai.transcript_parser import chunk_transcript
 from app.api.deps import OrgContext, get_org_context, require_role
 from app.core.errors import Invalid
 from app.db.dependencies import get_db
@@ -102,8 +100,14 @@ def upload_transcript(
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
 ):
-    key = candidate_service.upload(db, ctx, candidate_id, file, "transcripts")
-    return {"message": "Transcript uploaded successfully", "file_path": key}
+    interview_id, segments = candidate_service.upload_transcript_as_interview(
+        db, ctx, candidate_id, file
+    )
+    return {
+        "message": "Transcript uploaded successfully",
+        "interview_id": interview_id,
+        "segments": segments,
+    }
 
 
 @router.post("/{candidate_id}/avatar")
@@ -125,16 +129,3 @@ def get_resume_text(
     if not c.resume_path:
         raise Invalid("Resume not uploaded", "no_resume")
     return {"resume_text": extract_text_from_pdf(c.resume_path)}
-
-
-@router.get("/{candidate_id}/transcript-chunks")
-def get_transcript_chunks(
-    candidate_id: int, ctx: OrgContext = Depends(get_org_context), db: Session = Depends(get_db)
-):
-    c = candidate_service.get_candidate(db, ctx, candidate_id)
-    if not c.transcript_path:
-        raise Invalid("Transcript not uploaded", "no_transcript")
-    chunks = chunk_transcript(load_transcript(c.transcript_path))
-    if not chunks:
-        raise Invalid("Could not parse transcript format", "unparseable_transcript")
-    return {"chunks": chunks}

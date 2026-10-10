@@ -24,7 +24,18 @@ def _fake_client(parsed=None, refusal=None, prompt_tokens=1000, completion_token
 
 def _out():
     return ClaimCheckOut.model_validate(
-        {"comparisons": [{"claim": "Python expert", "result": "Confirmed", "severity": "low"}]}
+        {
+            "comparisons": [
+                {
+                    "claim": "Python expert",
+                    "resume_quote": "Python",
+                    "verdict": "verified",
+                    "explanation": "Confirmed",
+                    "severity": "low",
+                    "segment_ids": [1],
+                }
+            ]
+        }
     )
 
 
@@ -60,7 +71,7 @@ def test_identical_input_is_served_from_cache(db_session, org):
         again = _call(org.id)
 
     assert client.chat.completions.parse.call_count == 1
-    assert again.comparisons[0].severity == "low"
+    assert again.comparisons[0].verdict == "verified"
     statuses = [r.status for r in db_session.query(AIRun).order_by(AIRun.id)]
     assert statuses == ["ok", "cached"]
 

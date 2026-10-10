@@ -9,12 +9,6 @@ _RULES: dict[str, dict] = {
         "max_bytes": 10 * 1024 * 1024,
         "ext": "pdf",
     },
-    "transcripts": {
-        "types": {"text/plain", "text/vtt", "application/x-subrip", "application/octet-stream"},
-        "magic": (),
-        "max_bytes": 5 * 1024 * 1024,
-        "ext": "txt",
-    },
     "avatars": {
         "types": {"image/jpeg", "image/png", "image/webp"},
         "magic": (b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n", b"RIFF"),
