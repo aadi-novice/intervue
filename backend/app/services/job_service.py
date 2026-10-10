@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.core.errors import Conflict
+from app.core.redact import scrub
 from app.models.job import Job
 
 
@@ -67,7 +68,7 @@ def set_status(
     if job is None:
         return
     job.status = status
-    job.error = error[:2000] if error else None
+    job.error = scrub(error) if error else None
     if result is not None:
         job.result = result
     db.commit()

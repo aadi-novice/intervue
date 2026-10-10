@@ -14,7 +14,9 @@ import {
   SuggestionChip,
   TextField,
 } from "@/components/m3";
-import { api } from "@/lib/api";
+import { Switch } from "@/components/m3";
+import { MAX_CRITERIA, apiMessage, normalisedWeights, rankingApi, validateRubric, type CriterionInput } from "@/lib/api-ranking";
+import { useCreateRole } from "@/lib/queries/ranking";
 
 const SKILL_SUGGESTIONS = ["Rust", "Go", "TypeScript", "Python", "gRPC", "K8s", "AWS", "WebAssembly", "Tokio", "React"];
 const EXPERIENCE_LEVELS = ["junior", "mid", "senior", "staff", "principal"];
@@ -26,7 +28,13 @@ export default function NewRolePage() {
   const [experienceYears, setExperienceYears] = useState(3);
   const [skills, setSkills] = useState<string[]>(["Rust", "gRPC"]);
   const [skillInput, setSkillInput] = useState("");
+  const [description, setDescription] = useState("");
+  const [criteria, setCriteria] = useState<CriterionInput[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const createRole = useCreateRole();
+  const patchCriterion = (i: number, p: Partial<CriterionInput>) =>
+    setCriteria(criteria.map((c, j) => (j === i ? { ...c, ...p } : c)));
+  const weights = normalisedWeights(criteria);
   const [error, setError] = useState<string | null>(null);
 
   const addSkill = (s: string) => {
@@ -41,17 +49,31 @@ export default function NewRolePage() {
       setError("Job title is required.");
       return;
     }
+    const rubricErrors = criteria.length ? validateRubric(criteria) : {};
+    if (Object.keys(rubricErrors).length) {
+      setError(Object.values(rubricErrors)[0]);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
-      await api.roles.create({
+      const role = await createRole.mutateAsync({
         name: title,
         experience_level: experienceLevel,
         experience_required_years: experienceYears,
+        description: description.trim() || null,
       });
-      router.push("/dashboard");
+      if (criteria.length) {
+        try {
+          await rankingApi.rubric.put(role.id, criteria.map((c) => ({ ...c, name: c.name.trim() })));
+        } catch {
+          router.push(`/roles/${role.id}?tab=rubric`);
+          return;
+        }
+      }
+      router.push(`/roles/${role.id}`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(apiMessage(e));
       setSubmitting(false);
     }
   };
@@ -93,6 +115,57 @@ export default function NewRolePage() {
         </StaggerItem>
 
         <StaggerItem index={1}>
+          <Card variant="outlined" className="space-y-2 p-6">
+            <h2 className="title-m">Job description</h2>
+            <TextField
+              variant="outlined"
+              label="Job description"
+              multiline
+              rows={10}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              supportingText="Used to rank resumes and to suggest a scoring rubric."
+            />
+          </Card>
+        </StaggerItem>
+
+        <StaggerItem index={2}>
+          <Card variant="outlined" className="space-y-4 p-6">
+            <div>
+              <h2 className="title-m">Scoring rubric (optional)</h2>
+              <p className="body-s text-on-surface-variant">
+                Skip this to build or generate a rubric from the job description later in the role&apos;s Rubric tab.
+              </p>
+            </div>
+            {criteria.map((c, i) => (
+              <div key={i} className="grid items-start gap-3 medium:grid-cols-[1fr_8rem_auto_auto]">
+                <TextField variant="outlined" label="Criterion" value={c.name} onChange={(e) => patchCriterion(i, { name: e.target.value })} />
+                <TextField
+                  variant="outlined"
+                  label={`Weight (${weights[i].toFixed(0)}%)`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={c.weight}
+                  onChange={(e) => patchCriterion(i, { weight: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                />
+                <Switch label="Must-have" checked={c.must_have} onCheckedChange={(v) => patchCriterion(i, { must_have: v })} />
+                <IconButton icon="delete" label={`Remove criterion ${i + 1}`} onClick={() => setCriteria(criteria.filter((_, j) => j !== i))} />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outlined"
+              icon="add"
+              disabled={criteria.length >= MAX_CRITERIA}
+              onClick={() => setCriteria([...criteria, { name: "", description: "", weight: 10, must_have: false }])}
+            >
+              Add criterion
+            </Button>
+          </Card>
+        </StaggerItem>
+
+        <StaggerItem index={3}>
           <Card variant="outlined" className="p-6">
             <h2 className="mb-4 title-m">Required Skills</h2>
             <div className="mb-4 flex flex-wrap gap-2">
@@ -130,7 +203,7 @@ export default function NewRolePage() {
 
         <div className="flex items-center justify-end gap-3">
           <Button asChild variant="outlined">
-            <Link href="/dashboard">Cancel</Link>
+            <Link href="/roles">Cancel</Link>
           </Button>
           <Button type="submit" loading={submitting} icon="psychology">
             {submitting ? "Posting…" : "Post Role & Start AI Sourcing"}

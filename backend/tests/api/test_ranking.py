@@ -315,3 +315,12 @@ class TestAutoRank:
         before = db_session.query(Job).filter_by(kind="rank").count()
         ranking_service.schedule_rank(org.id, role.id)
         assert db_session.query(Job).filter_by(kind="rank").count() == before
+
+
+def test_failed_suggestion_ends_failed_and_never_exposes_api_keys(client, db_session, org):
+    role = make_role(db_session, org.id, "Suggest Fail", description="jd")
+    with patch("app.services.rubric_service.llm.complete_json",
+               side_effect=RuntimeError("Incorrect API key sk-proj-abcdefghijklmnopqrstuvwxyz1234")):
+        assert client.post(f"/roles/{role.id}/rubric/suggest").status_code == 202
+    st = client.get(f"/roles/{role.id}/rubric/suggest/status").json()
+    assert st["status"] == "failed" and "abcdefghijklmnop" not in st["error"] and "redacted" in st["error"]

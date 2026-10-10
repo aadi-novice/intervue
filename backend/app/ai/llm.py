@@ -17,6 +17,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.redact import scrub
 from app.db import session as db_session
 from app.models.ai_run import AIRun
 
@@ -144,7 +145,7 @@ def complete_json(
     except Exception as e:
         _record(
             org_id=org_id, purpose=purpose, model=model, prompt_version=prompt_version,
-            status="error", error=str(e)[:2000], cache_key=key, job_id=job_id, input_tokens=0, output_tokens=0,
+            status="error", error=scrub(str(e)), cache_key=key, job_id=job_id, input_tokens=0, output_tokens=0,
             cost_usd=0, latency_ms=int((time.perf_counter() - started) * 1000),
         )
         raise
@@ -172,7 +173,7 @@ def embed(
     except Exception as e:
         _record(
             org_id=org_id, purpose=purpose, model=model, prompt_version="-", status="error", job_id=job_id,
-            error=str(e)[:2000], input_tokens=0, output_tokens=0, cost_usd=0,
+            error=scrub(str(e)), input_tokens=0, output_tokens=0, cost_usd=0,
             latency_ms=int((time.perf_counter() - started) * 1000),
         )
         raise
