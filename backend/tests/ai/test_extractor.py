@@ -1,4 +1,4 @@
-"""Tests for the PDF text extractor with mocked Azure Blob Storage."""
+"""Tests for the PDF text extractor with mocked object storage."""
 
 from unittest.mock import patch
 

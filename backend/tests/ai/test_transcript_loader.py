@@ -1,4 +1,4 @@
-"""Tests for the transcript loader with mocked Azure Blob Storage."""
+"""Tests for the transcript loader with mocked object storage."""
 
 from unittest.mock import patch
 

@@ -22,3 +22,5 @@ storage/
 # Python caches / tooling
 .pytest_cache
 .ruff_cache
+
+.env.prod
