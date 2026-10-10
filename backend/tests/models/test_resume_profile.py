@@ -10,10 +10,10 @@ from app.models.role import Role
 
 
 def _create_candidate(db_session) -> Candidate:
-    role = Role(name="Engineer", experience_level="Senior", experience_required_years=5)
+    role = Role(org_id=1, name="Engineer", experience_level="Senior", experience_required_years=5)
     db_session.add(role)
     db_session.commit()
-    candidate = Candidate(name="Test User", email="test@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Test User", email="test@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
     return candidate
@@ -23,7 +23,7 @@ def test_create_resume_profile(db_session):
     """A resume profile can be created with all required fields."""
     candidate = _create_candidate(db_session)
 
-    profile = ResumeProfile(
+    profile = ResumeProfile(org_id=1,
         candidate_id=candidate.id,
         basics={"full_name": "Test User", "email": "test@example.com"},
         summary="A summary",
@@ -56,11 +56,11 @@ def test_resume_profile_unique_per_candidate(db_session):
         metadata_={"pages": 1},
     )
 
-    p1 = ResumeProfile(candidate_id=candidate.id, **common)
+    p1 = ResumeProfile(org_id=1, candidate_id=candidate.id, **common)
     db_session.add(p1)
     db_session.commit()
 
-    dup = ResumeProfile(candidate_id=candidate.id, **common)
+    dup = ResumeProfile(org_id=1, candidate_id=candidate.id, **common)
     db_session.add(dup)
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -71,7 +71,7 @@ def test_resume_profile_relationship(db_session):
     """ResumeProfile links back to candidate."""
     candidate = _create_candidate(db_session)
 
-    profile = ResumeProfile(
+    profile = ResumeProfile(org_id=1,
         candidate_id=candidate.id,
         basics={"full_name": "Test"},
         summary="S",

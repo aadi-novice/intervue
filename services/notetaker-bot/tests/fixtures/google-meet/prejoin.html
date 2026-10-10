@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Meet</title></head>
+<body>
+  <main id="prejoin">
+    <h1>Ready to join?</h1>
+    <input type="text" aria-label="Your name" placeholder="Your name" value="">
+    <button type="button" id="mic" aria-label="Turn off microphone (ctrl + d)">Mic</button>
+    <button type="button" id="cam" aria-label="Turn off camera (ctrl + e)">Cam</button>
+    <button type="button" id="gotit" aria-label="Got it">Got it</button>
+    <button type="button" id="join"><span>Ask to join</span></button>
+  </main>
+  <main id="lobby" hidden><p>Asking to be let in…</p></main>
+  <script>
+    window.state = { micOff: false, camOff: false, joinedName: null };
+    document.getElementById("mic").onclick = (e) => {
+      window.state.micOff = true; e.target.setAttribute("aria-label", "Turn on microphone (ctrl + d)");
+    };
+    document.getElementById("cam").onclick = (e) => {
+      window.state.camOff = true; e.target.setAttribute("aria-label", "Turn on camera (ctrl + e)");
+    };
+    document.getElementById("gotit").onclick = (e) => e.target.remove();
+    document.getElementById("join").onclick = () => {
+      window.state.joinedName = document.querySelector('input[aria-label="Your name"]').value;
+      document.getElementById("prejoin").hidden = true;
+      document.getElementById("lobby").hidden = false;
+    };
+  </script>
+</body></html>

@@ -1,0 +1,18 @@
+# Single-server edge proxy. Caddy obtains and renews TLS certificates automatically for {$DOMAIN}
+# (DNS A/AAAA record must point at this host; ports 80/443 must be reachable).
+# Only the frontend is exposed: the browser calls /api/*, the Next.js server proxies that to the backend over the
+# internal compose network. The backend is never published, so /api/* is deliberately not routed to it here.
+{$DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	# Resume uploads pass through the proxy; keep the cap in line with the backend upload limit.
+	request_body {
+		max_size 50MB
+	}
+	reverse_proxy frontend:3000
+}

@@ -1,0 +1,8 @@
+region              = "us-east-1"
+environment         = "prod"
+bucket_name         = "intervue-prod-CHANGE-ME"
+domain_name         = "app.example.com"
+acm_certificate_arn = "" # ACM cert ARN for HTTPS on the ALB
+enable_cloudfront   = false
+db_multi_az         = true
+ses_domain          = ""

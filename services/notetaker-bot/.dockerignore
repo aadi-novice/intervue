@@ -1,0 +1,12 @@
+node_modules
+dist
+tests
+test-results
+playwright-report
+*.log
+.git
+.gitignore
+README.md
+vitest.config.ts
+playwright.config.ts
+tsconfig.lint.json

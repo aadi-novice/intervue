@@ -1,0 +1,277 @@
+# Render Blueprint for Intervue. NOT deployed or validated by Render (see docs/DEPLOYMENT.md).
+# Spec: https://render.com/docs/blueprint-spec
+#
+# Notes
+# - Secrets use `sync: false`: Render prompts for them once, when the Blueprint is first created. Render does not
+#   allow `sync: false` inside envVarGroups, so non-secret shared settings live in the group `intervue-shared`
+#   and the secrets are declared per service (backend, worker, beat). Set the same values on all three.
+# - Render has no object storage: S3_* must point at AWS S3 or Cloudflare R2.
+# - The first Alembic migration runs `CREATE EXTENSION vector`; Render Postgres supports pgvector.
+# - DATABASE_URL arrives as postgres://...; backend/docker-entrypoint.sh rewrites it to postgresql+psycopg2://.
+# - FRONTEND_URL / PUBLIC_API_URL / CORS_ORIGINS must be set to the frontend's public URL (sync: false) after the
+#   first deploy; the browser only talks to the frontend (/api/* is proxied to the backend privately).
+
+envVarGroups:
+  - name: intervue-shared
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: S3_REGION
+        value: us-east-1
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: REFRESH_COOKIE_PATH
+        value: /api/auth
+      - key: EMAIL_BACKEND
+        value: smtp
+      - key: SMTP_PORT
+        value: "587"
+      - key: BOT_LAUNCHER
+        value: pool
+      - key: TRANSCRIBER_MODE
+        value: api
+
+databases:
+  - name: intervue-db
+    databaseName: intervue_db
+    user: intervue
+    plan: basic-1gb
+    postgresMajorVersion: "16"
+
+services:
+  - type: keyvalue
+    name: intervue-redis
+    plan: starter
+    maxmemoryPolicy: noeviction   # Celery broker: never evict queued tasks
+    ipAllowList: []               # internal network only
+
+  - type: web
+    name: intervue-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: starter
+    numInstances: 1
+    healthCheckPath: /healthz
+    # Runs migrations once per deploy, before the new version starts. If your plan/account does not support
+    # preDeployCommand, remove it and set RUN_MIGRATIONS=true as an env var instead.
+    preDeployCommand: docker-entrypoint.sh alembic upgrade head
+    envVars:
+      - key: PORT
+        value: "8000"
+      - fromGroup: intervue-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: intervue-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: intervue-redis
+          property: connectionString
+      - key: FRONTEND_URL
+        sync: false
+      - key: PUBLIC_API_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: INTERNAL_HMAC_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: TRANSCRIBER_URL
+        sync: false
+      - key: TRANSCRIBER_API_KEY
+        sync: false
+      - key: TRANSCRIBER_CALLBACK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: web
+    name: intervue-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter
+    numInstances: 1
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: "3000"
+      # Build-time input (declared as ARG in frontend/Dockerfile): "host:port" of the private backend.
+      - key: BACKEND_INTERNAL_HOSTPORT
+        fromService:
+          type: web
+          name: intervue-backend
+          property: hostport
+
+  - type: worker
+    name: intervue-worker
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A app.worker.celery_app.celery_app worker -l info -Q default --concurrency 2
+    plan: starter
+    numInstances: 1
+    envVars:
+      - fromGroup: intervue-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: intervue-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: intervue-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: INTERNAL_HMAC_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: TRANSCRIBER_URL
+        sync: false
+      - key: TRANSCRIBER_API_KEY
+        sync: false
+      - key: TRANSCRIBER_CALLBACK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  - type: worker
+    name: intervue-beat
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A app.worker.celery_app.celery_app beat -l info -s /tmp/celerybeat-schedule
+    plan: starter
+    numInstances: 1   # MUST stay 1: two beats would double-fire every schedule
+    envVars:
+      - fromGroup: intervue-shared
+      - key: DATABASE_URL
+        fromDatabase:
+          name: intervue-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: intervue-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      - key: INTERNAL_HMAC_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: MICROSOFT_CLIENT_ID
+        sync: false
+      - key: MICROSOFT_CLIENT_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: TRANSCRIBER_URL
+        sync: false
+      - key: TRANSCRIBER_API_KEY
+        sync: false
+      - key: TRANSCRIBER_CALLBACK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+
+  # Optional notetaker bot pool (BOT_LAUNCHER=pool): BLPOPs sessions from Redis, one meeting at a time.
+  # Chromium + ffmpeg need real memory; scale numInstances for concurrent meetings.
+  - type: worker
+    name: intervue-bot-pool
+    runtime: docker
+    dockerfilePath: ./services/notetaker-bot/Dockerfile
+    dockerContext: ./services/notetaker-bot
+    plan: standard
+    numInstances: 1
+    envVars:
+      - key: BOT_MODE
+        value: pool
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: intervue-redis
+          property: connectionString

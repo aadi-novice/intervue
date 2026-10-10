@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -21,9 +23,18 @@ class AnalysisResponse(BaseModel):
     resume_alignment: list
 
     candidate_id: int
+    interview_id: int | None = None
+    hiring_recommendation: str | None = None
 
     created_at: datetime
 
     model_config = {
         "from_attributes": True
     }
+
+
+class AnalysisStatusResponse(BaseModel):
+    status: Literal["none", "queued", "running", "completed", "failed"]
+    job_id: int | None = None
+    error: str | None = None
+    analysis_id: int | None = None

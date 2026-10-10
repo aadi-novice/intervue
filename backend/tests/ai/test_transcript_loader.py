@@ -1,9 +1,9 @@
-"""Tests for the transcript loader with mocked Azure Blob Storage."""
+"""Tests for the transcript loader with mocked object storage."""
 
 from unittest.mock import patch
 
 
-@patch("app.ai.transcript_loader.download_text")
+@patch("app.ai.transcript_loader.storage.get_text")
 def test_load_transcript(mock_download):
     """Should download and return the transcript text."""
     mock_download.return_value = "Mocked transcript content"

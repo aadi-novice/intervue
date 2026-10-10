@@ -5,8 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 #-------------------#
-import os
-from dotenv import load_dotenv
+from app.core.config import settings
 from app.db.base import Base
 from app.models import *
 
@@ -23,17 +22,8 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = Base.metadata
 
-#loading .env
-load_dotenv()
-
-# Use Supabase DB_CONNECTION; fall back to local DATABASE_URL
-# NOTE: We intentionally do NOT call config.set_main_option() here because
-# configparser treats '%' as an interpolation character, which breaks
-# percent-encoded URLs (e.g., %40 for '@' in a password).
-DB_URL = os.getenv("DB_CONNECTION") or os.getenv("DATABASE_URL")
-
-# Decide connect_args based on whether we're using Supabase (needs SSL)
-CONNECT_ARGS = {"sslmode": "require"} if os.getenv("DB_CONNECTION") else {}
+DB_URL = settings.database_url
+CONNECT_ARGS = {}
 
 
 def run_migrations_offline() -> None:

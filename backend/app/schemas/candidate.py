@@ -63,6 +63,10 @@ class PipelineCandidateResponse(BaseModel):
     resume_path: Optional[str] = None
     transcript_path: Optional[str] = None
     avatar_path: Optional[str] = None
+    avatar_url: Optional[str] = None
+    source: Optional[str] = None
+    interviewed: bool = False
+    best_match: Optional[dict[str, Any]] = None  # {role_id, role_name, score, similarity}
 
     model_config = {"from_attributes": True}
 
@@ -81,6 +85,8 @@ class AnalysisSummary(BaseModel):
     communication_score: int
     confidence_score: int
     aggregate_score: int          # pre-computed average for convenience
+    interview_id: Optional[int] = None
+    hiring_recommendation: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -121,9 +127,13 @@ class CandidateDetailResponse(BaseModel):
     resume_path: Optional[str] = None
     transcript_path: Optional[str] = None
     avatar_path: Optional[str] = None
+    # Short-lived presigned GET URLs (objects are private)
+    avatar_url: Optional[str] = None
+    resume_url: Optional[str] = None
 
     # Parsed resume (None if resume not yet uploaded / parsed)
     resume_profile: Optional[ResumeProfileSummary] = None
+    resume_parse_status: str = "no_resume"  # no_resume | pending | ready
 
     # Interview analysis (None if analysis not yet run)
     analysis: Optional[AnalysisSummary] = None

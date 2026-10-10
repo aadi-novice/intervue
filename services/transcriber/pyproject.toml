@@ -1,0 +1,33 @@
+[project]
+name = "intervue-transcriber"
+version = "0.1.0"
+description = "Intervue transcription service (faster-whisper / hosted STT API)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.28.1",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "faster-whisper>=1.1.0",
+]
+
+[project.optional-dependencies]
+# Needed only for TRANSCRIBER_MODE=api with STT_API_PROVIDER=openai.
+api = ["openai>=1.40"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "openai>=1.40",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
