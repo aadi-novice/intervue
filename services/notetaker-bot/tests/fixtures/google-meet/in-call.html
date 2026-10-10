@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Meet</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .tiles { display: flex; gap: 8px; padding: 8px; }
+  .tile { width: 240px; height: 160px; background: #333; color: #fff; position: relative; }
+  .indicator { position: absolute; right: 8px; bottom: 8px; width: 24px; height: 24px; background: #8ab4f8; border-radius: 50%; }
+  .indicator.active { animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { transform: scale(0.8); } to { transform: scale(1.2); } }
+  #chat { padding: 8px; }
+</style></head>
+<body>
+  <div class="tiles">
+    <div class="tile" data-participant-id="spaces/x/devices/1"><span data-self-name="Priya Sharma">Priya Sharma</span><div class="indicator" data-audio-indicator></div></div>
+    <div class="tile" data-participant-id="spaces/x/devices/2"><span data-self-name="Tom Lee">Tom Lee</span><div class="indicator" data-audio-indicator></div></div>
+    <div class="tile" data-participant-id="spaces/x/devices/3"><span data-self-name="Intervue Notetaker (You)">Intervue Notetaker (You)</span><div class="indicator" data-audio-indicator></div></div>
+  </div>
+  <nav>
+    <button type="button" aria-label="Turn on microphone">Mic</button>
+    <button type="button" aria-label="People - 3 joined">People</button>
+    <button type="button" id="chatbtn" aria-label="Chat with everyone">Chat</button>
+    <button type="button" id="leave" aria-label="Leave call">Leave</button>
+  </nav>
+  <section id="chat" hidden>
+    <ul id="messages"></ul>
+    <textarea aria-label="Send a message" role="textbox"></textarea>
+    <button type="button" id="send" aria-label="Send a message">Send</button>
+  </section>
+  <script>
+    window.chatMessages = [];
+    const box = document.querySelector('[aria-label="Send a message"][role="textbox"]');
+    function post() {
+      const v = box.value.trim();
+      if (!v) return;
+      window.chatMessages.push(v);
+      const li = document.createElement("li"); li.textContent = v;
+      document.getElementById("messages").appendChild(li);
+      box.value = "";
+    }
+    document.getElementById("chatbtn").onclick = () => { document.getElementById("chat").hidden = false; };
+    box.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); post(); } });
+    document.getElementById("send").onclick = post;
+    document.getElementById("leave").onclick = () => {
+      document.body.innerHTML = "<main><h1>You left the meeting</h1><button type='button'>Return to home screen</button></main>";
+    };
+    // Test hooks
+    window.setSpeaking = (...names) => {
+      document.querySelectorAll(".tile").forEach((t) => {
+        const n = t.querySelector("[data-self-name]").dataset.selfName;
+        t.querySelector(".indicator").classList.toggle("active", names.includes(n));
+      });
+    };
+    window.setPeopleLabel = (label) => document.querySelector('[aria-label^="People"]').setAttribute("aria-label", label);
+  </script>
+</body></html>
