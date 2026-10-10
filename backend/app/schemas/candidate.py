@@ -64,6 +64,9 @@ class PipelineCandidateResponse(BaseModel):
     transcript_path: Optional[str] = None
     avatar_path: Optional[str] = None
     avatar_url: Optional[str] = None
+    source: Optional[str] = None
+    interviewed: bool = False
+    best_match: Optional[dict[str, Any]] = None  # {role_id, role_name, score, similarity}
 
     model_config = {"from_attributes": True}
 

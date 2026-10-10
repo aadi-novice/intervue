@@ -102,6 +102,11 @@ def list_pipeline(db: Session, ctx: OrgContext) -> list[PipelineCandidateRespons
         .order_by(Candidate.id)
         .all()
     )
+    from app.services import dashboard_service
+
+    ids = [c.id for c in cands]
+    best = dashboard_service.best_matches(db, ctx.org_id, ids)
+    interviewed = dashboard_service.interviewed_ids(db, ctx.org_id, ids)
     out = []
     for c in cands:
         latest = _latest(c.analyses)
@@ -119,6 +124,9 @@ def list_pipeline(db: Session, ctx: OrgContext) -> list[PipelineCandidateRespons
                 transcript_path=c.transcript_path,
                 avatar_path=c.avatar_path,
                 avatar_url=_url(c.avatar_path),
+                source=c.source,
+                interviewed=c.id in interviewed,
+                best_match=best.get(c.id),
                 **_identity(c),
             )
         )

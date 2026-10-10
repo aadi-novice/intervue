@@ -9,6 +9,7 @@ from app.api import (
     analysis,
     auth,
     candidate,
+    dashboard,
     health,
     internal,
     interviews,
@@ -82,4 +83,5 @@ app.include_router(candidate.router)
 app.include_router(analysis.router)
 app.include_router(interviews.router)
 app.include_router(ranking.router)
+app.include_router(dashboard.router)
 app.include_router(internal.router)
