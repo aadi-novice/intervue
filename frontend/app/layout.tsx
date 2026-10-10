@@ -1,30 +1,24 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Roboto_Flex } from "next/font/google";
+import "@material-symbols/font-400/rounded.css";
 import "./globals.css";
-import { cn } from "@/lib/utils";
+import { defaultThemeCss } from "./theme/generate-theme";
+import { themeInitScript } from "./theme/theme-script";
+import { Providers } from "@/components/providers";
 
-const geist = Geist({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-mono",
+const robotoFlex = Roboto_Flex({
+  variable: "--font-roboto-flex",
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Neuro-Hiring | AI Recruitment Platform",
-  description:
-    "Neuro-Minimalist AI hiring platform — precision hiring for high-growth tech teams.",
+  title: "Intervue | AI Recruitment Platform",
+  description: "Intervue — AI-assisted hiring: resume ranking, interview notes and candidate comparison.",
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
@@ -33,17 +27,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={cn(
-        "h-full antialiased dark",
-        geist.variable,
-        inter.variable,
-        geistMono.variable
-      )}
-    >
-      <body className="min-h-full flex flex-col bg-[#10131a] text-[#e1e2ec]">
-        {children}
+    <html lang="en" className={robotoFlex.variable} suppressHydrationWarning>
+      <head>
+        {/* Sets .light/.dark on <html> before first paint (no theme flash). */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        {/* M3 colour tokens generated from the seed; swap per-org later. */}
+        <style id="md-sys-color" dangerouslySetInnerHTML={{ __html: defaultThemeCss }} />
+      </head>
+      <body className="min-h-full bg-surface text-on-surface body-m antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

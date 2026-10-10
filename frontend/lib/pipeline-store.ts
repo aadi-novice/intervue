@@ -19,15 +19,14 @@ export interface Candidate {
 export interface Stage {
   id: StageId;
   label: string;
-  color: string;
 }
 
 export const STAGES: Stage[] = [
-  { id: "applied",   label: "Applied",            color: "#8c909f" },
-  { id: "screening", label: "AI Screening",        color: "#f59e0b" },
-  { id: "interview", label: "Technical Interview", color: "#3b82f6" },
-  { id: "offer",     label: "Offer Stage",         color: "#10b981" },
-  { id: "hired",     label: "Hired",               color: "#a78bfa" },
+  { id: "applied",   label: "Applied" },
+  { id: "screening", label: "AI Screening" },
+  { id: "interview", label: "Technical Interview" },
+  { id: "offer",     label: "Offer Stage" },
+  { id: "hired",     label: "Hired" },
 ];
 
 function toCandidate(c: PipelineCandidate): Candidate {

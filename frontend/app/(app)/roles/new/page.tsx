@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, Sparkles, Plus, X, Loader2 } from "lucide-react";
+import {
+  Button,
+  Card,
+  IconButton,
+  InputChip,
+  PageHeader,
+  Select,
+  StaggerItem,
+  SuggestionChip,
+  TextField,
+} from "@/components/m3";
 import { api } from "@/lib/api";
 
 const SKILL_SUGGESTIONS = ["Rust", "Go", "TypeScript", "Python", "gRPC", "K8s", "AWS", "WebAssembly", "Tokio", "React"];
@@ -28,7 +37,10 @@ export default function NewRolePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title) { setError("Job title is required."); return; }
+    if (!title) {
+      setError("Job title is required.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -45,123 +57,84 @@ export default function NewRolePage() {
   };
 
   return (
-    <div className="p-6 fade-in max-w-3xl mx-auto">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-[#8c909f] mb-6">
-        <Link href="/dashboard" className="hover:text-[#e1e2ec] transition-colors flex items-center gap-1">
-          <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-[#e1e2ec]">Post New Role</span>
-      </div>
-
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#e1e2ec]" style={{ fontFamily: "var(--font-heading)", letterSpacing: "-0.03em" }}>
-          Post New Role
-        </h1>
-        <p className="text-[#8c909f] text-sm mt-1">AI will begin sourcing and screening candidates immediately.</p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6 p-4 medium:p-6">
+      <PageHeader title="Post New Role" subtitle="AI will begin sourcing and screening candidates immediately." />
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Role Details */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="nh-card p-6">
-          <h2 className="text-sm font-semibold text-[#e1e2ec] mb-5" style={{ fontFamily: "var(--font-heading)" }}>
-            Role Details
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs mono text-[#8c909f] mb-1.5 uppercase tracking-wider">Job Title *</label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                placeholder="e.g. Senior Rust Engineer"
-                className="w-full bg-[#272a31] border border-[#424754] rounded-xl px-4 py-3 text-sm text-[#e1e2ec] placeholder-[#424754] outline-none focus:border-[#3b82f6] focus:ring-1 focus:ring-[#3b82f6]/30 transition-all"
+        <StaggerItem index={0}>
+          <Card variant="outlined" className="space-y-4 p-6">
+            <h2 className="title-m">Role Details</h2>
+            <TextField
+              variant="outlined"
+              label="Job Title *"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="e.g. Senior Rust Engineer"
+            />
+            <div className="grid gap-4 medium:grid-cols-2">
+              <Select
+                label="Seniority Level"
+                value={experienceLevel}
+                onValueChange={setExperienceLevel}
+                options={EXPERIENCE_LEVELS.map((l) => ({ value: l, label: l.charAt(0).toUpperCase() + l.slice(1) }))}
+              />
+              <TextField
+                variant="outlined"
+                label="Years Required"
+                type="number"
+                min={0}
+                max={20}
+                value={experienceYears}
+                onChange={(e) => setExperienceYears(Number(e.target.value))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs mono text-[#8c909f] mb-1.5 uppercase tracking-wider">Seniority Level</label>
-                <select
-                  value={experienceLevel}
-                  onChange={(e) => setExperienceLevel(e.target.value)}
-                  className="w-full bg-[#272a31] border border-[#424754] rounded-xl px-4 py-3 text-sm text-[#e1e2ec] outline-none focus:border-[#3b82f6] transition-all appearance-none"
-                >
-                  {EXPERIENCE_LEVELS.map((l) => (
-                    <option key={l} value={l} className="capitalize">{l.charAt(0).toUpperCase() + l.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs mono text-[#8c909f] mb-1.5 uppercase tracking-wider">Years Required</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={20}
-                  value={experienceYears}
-                  onChange={(e) => setExperienceYears(Number(e.target.value))}
-                  className="w-full bg-[#272a31] border border-[#424754] rounded-xl px-4 py-3 text-sm text-[#e1e2ec] outline-none focus:border-[#3b82f6] transition-all"
-                />
-              </div>
-            </div>
-          </div>
-        </motion.div>
+          </Card>
+        </StaggerItem>
 
-        {/* Required Skills */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="nh-card p-6">
-          <h2 className="text-sm font-semibold text-[#e1e2ec] mb-5" style={{ fontFamily: "var(--font-heading)" }}>
-            Required Skills
-          </h2>
-          <div className="flex flex-wrap gap-2 mb-4">
-            {skills.map((s) => (
-              <div key={s} className="skill-tag flex items-center gap-1.5 pr-2">
-                {s}
-                <button type="button" onClick={() => removeSkill(s)} className="text-[#8c909f] hover:text-[#f43f5e] transition-colors">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={skillInput}
-              onChange={(e) => setSkillInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill(skillInput))}
-              placeholder="Add skill…"
-              className="flex-1 bg-[#272a31] border border-[#424754] rounded-xl px-4 py-2.5 text-sm text-[#e1e2ec] placeholder-[#424754] outline-none focus:border-[#3b82f6] transition-all"
-            />
-            <button type="button" onClick={() => addSkill(skillInput)} className="px-4 py-2.5 rounded-xl bg-[#272a31] border border-[#424754] text-[#8c909f] hover:text-[#e1e2ec] transition-colors">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="mt-4">
-            <p className="text-xs text-[#8c909f] mb-2">Suggestions</p>
-            <div className="flex flex-wrap gap-1.5">
-              {SKILL_SUGGESTIONS.filter((s) => !skills.includes(s)).map((s) => (
-                <button type="button" key={s} onClick={() => addSkill(s)} className="skill-tag hover:border-[#3b82f6] hover:text-[#3b82f6] transition-colors cursor-pointer">
-                  + {s}
-                </button>
+        <StaggerItem index={1}>
+          <Card variant="outlined" className="p-6">
+            <h2 className="mb-4 title-m">Required Skills</h2>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {skills.map((s) => (
+                <InputChip key={s} label={s} onRemove={() => removeSkill(s)} />
               ))}
             </div>
-          </div>
-        </motion.div>
+            <div className="flex items-start gap-2">
+              <TextField
+                variant="outlined"
+                label="Add skill"
+                containerClassName="flex-1"
+                value={skillInput}
+                onChange={(e) => setSkillInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill(skillInput))}
+              />
+              <IconButton variant="tonal" size="lg" icon="add" label="Add skill" className="mt-1" onClick={() => addSkill(skillInput)} />
+            </div>
+            <div className="mt-4">
+              <p className="mb-2 label-m text-on-surface-variant">Suggestions</p>
+              <div className="flex flex-wrap gap-2">
+                {SKILL_SUGGESTIONS.filter((s) => !skills.includes(s)).map((s) => (
+                  <SuggestionChip key={s} label={s} icon="add" onClick={() => addSkill(s)} />
+                ))}
+              </div>
+            </div>
+          </Card>
+        </StaggerItem>
 
-        {error && <p className="text-sm text-[#f43f5e] px-1">{error}</p>}
+        {error && (
+          <p role="alert" className="px-1 body-m text-error">
+            {error}
+          </p>
+        )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-3 justify-end">
-          <Link href="/dashboard" className="px-6 py-3 rounded-xl bg-[#272a31] border border-[#424754] text-sm text-[#8c909f] hover:text-[#e1e2ec] transition-colors font-semibold">
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="px-6 py-3 rounded-xl bg-[#3b82f6] text-white text-sm font-semibold hover:bg-[#2563eb] transition-colors nh-action-glow flex items-center gap-2 disabled:opacity-60"
-          >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+        <div className="flex items-center justify-end gap-3">
+          <Button asChild variant="outlined">
+            <Link href="/dashboard">Cancel</Link>
+          </Button>
+          <Button type="submit" loading={submitting} icon="psychology">
             {submitting ? "Posting…" : "Post Role & Start AI Sourcing"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

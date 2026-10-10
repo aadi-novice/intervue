@@ -1,5 +1,5 @@
 import AppShell from "@/components/app-shell";
 
-export default function CompareLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return <AppShell>{children}</AppShell>;
 }
