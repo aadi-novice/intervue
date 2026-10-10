@@ -58,8 +58,9 @@ def has_capacity(db: Session, org_id: int) -> bool:
 
 
 # ── API-side ──────────────────────────────────────────────────────────────────
-def request_bot(db: Session, ctx: OrgContext, interview_id: int, mode: str = "now") -> BotSession:
-    iv = interview_service.get_interview(db, ctx, interview_id)
+def schedule_bot(db: Session, org: Organization, iv: Interview, mode: str = "now") -> BotSession:
+    """Create a bot session for an interview (no request context needed: also used by calendar
+    sync). Caller commits audit entries; this commits the session and launches when mode=now."""
     if not iv.meeting_url or iv.platform not in SUPPORTED_PLATFORMS:
         raise Invalid(
             "The notetaker supports Google Meet links for now. Upload a transcript or recording instead.",
@@ -75,18 +76,47 @@ def request_bot(db: Session, ctx: OrgContext, interview_id: int, mode: str = "no
         raise Invalid("Scheduled sends need a future scheduled_start", "bad_schedule")
 
     session = BotSession(
-        org_id=ctx.org_id, interview_id=iv.id, status="scheduled",
+        org_id=iv.org_id, interview_id=iv.id, status="scheduled",
         launch_at=_now() if mode == "now" else start - LEAD_TIME,
-        consent_message=consent_message_for(ctx.org),
+        consent_message=consent_message_for(org),
     )
     db.add(session)
-    audit_service.record(db, ctx, "bot.requested", "interview", iv.id, mode=mode)
     db.commit()
     db.refresh(session)
     if mode == "now":
         launch_session(db, session.id)  # queues (stays 'scheduled') if at capacity
         db.refresh(session)
     return session
+
+
+def request_bot(db: Session, ctx: OrgContext, interview_id: int, mode: str = "now") -> BotSession:
+    iv = interview_service.get_interview(db, ctx, interview_id)
+    session = schedule_bot(db, ctx.org, iv, mode)
+    audit_service.record(db, ctx, "bot.requested", "interview", iv.id, mode=mode)
+    db.commit()
+    return session
+
+
+def cancel_scheduled_bot(db: Session, iv: Interview) -> bool:
+    """Cancel a not-yet-launched session (calendar event moved/cancelled). Returns True if any."""
+    cancelled = False
+    for b in iv.bot_sessions:
+        if b.status == "scheduled":
+            b.status = "failed"
+            b.failure_reason = "cancelled"
+            cancelled = True
+    if cancelled:
+        db.commit()
+    return cancelled
+
+
+def reschedule_bot(db: Session, iv: Interview) -> None:
+    """Calendar event time changed: move launch_at of a still-scheduled session."""
+    start = _aware(iv.scheduled_start)
+    for b in iv.bot_sessions:
+        if b.status == "scheduled" and start is not None:
+            b.launch_at = max(start - LEAD_TIME, _now())
+    db.commit()
 
 
 def stop_bot(db: Session, ctx: OrgContext, interview_id: int) -> BotSession:

@@ -11,6 +11,7 @@ celery_app = Celery(
         "app.worker.tasks.analysis",
         "app.worker.tasks.bots",
         "app.worker.tasks.ranking",
+        "app.worker.tasks.calendar",
     ],
 )
 
@@ -30,5 +31,10 @@ celery_app.conf.update(
     beat_schedule={
         "bots-launch-due": {"task": "bots.launch_due", "schedule": 30.0},
         "bots-reap-stuck": {"task": "bots.reap_stuck", "schedule": 600.0},
+        "calendar-sync": {
+            "task": "calendar.sync_all",
+            "schedule": float(settings.calendar_sync_minutes * 60),
+        },
+        "calendar-renew-watches": {"task": "calendar.renew_watches", "schedule": 3600.0},
     },
 )
