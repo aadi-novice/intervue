@@ -18,10 +18,10 @@ from sqlalchemy.pool import StaticPool
 # ── Set test env vars before any app imports ────────────────────────────
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key")
-os.environ.setdefault(
-    "AZURE_STORAGE_CONNECTION_STRING",
-    "DefaultEndpointsProtocol=https;AccountName=test;AccountKey=dGVzdA==;EndpointSuffix=core.windows.net",
-)
+os.environ.setdefault("S3_BUCKET", "intervue-test")
+os.environ.setdefault("S3_ACCESS_KEY_ID", "testing")
+os.environ.setdefault("S3_SECRET_ACCESS_KEY", "testing")
+os.environ.setdefault("S3_REGION", "us-east-1")
 
 # ── Create test engine & session factory ───────────────────────────────
 _test_engine = create_engine(

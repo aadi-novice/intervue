@@ -121,6 +121,9 @@ class CandidateDetailResponse(BaseModel):
     resume_path: Optional[str] = None
     transcript_path: Optional[str] = None
     avatar_path: Optional[str] = None
+    # Short-lived presigned GET URLs (objects are private)
+    avatar_url: Optional[str] = None
+    resume_url: Optional[str] = None
 
     # Parsed resume (None if resume not yet uploaded / parsed)
     resume_profile: Optional[ResumeProfileSummary] = None

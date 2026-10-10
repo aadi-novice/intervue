@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 
-@patch("app.ai.extractor.download_bytes")
+@patch("app.ai.extractor.storage.get")
 def test_extract_text_from_pdf(mock_download):
     """Should download PDF bytes and extract text."""
     # A minimal valid PDF with text "Hello World"

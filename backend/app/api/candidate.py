@@ -45,6 +45,7 @@ from app.ai.transcript_parser import (
 
 from app.ai.extractor import extract_text_from_pdf
 
+from app.core import storage
 from app.utils.file_handler import save_file
 
 router = APIRouter(
@@ -297,6 +298,8 @@ async def get_candidate_detail(
         resume_path=candidate.resume_path,
         transcript_path=candidate.transcript_path,
         avatar_path=candidate.avatar_path,
+        avatar_url=storage.presigned_get(candidate.avatar_path) if candidate.avatar_path else None,
+        resume_url=storage.presigned_get(candidate.resume_path) if candidate.resume_path else None,
         resume_profile=profile_out,
         analysis=analysis_out,
     )
@@ -334,10 +337,7 @@ async def upload_resume(
             detail="Candidate not found"
         )
     
-    file_path  = save_file(
-        file,
-        "storage/resumes"
-    )
+    file_path = save_file(file, "resumes")
 
     candidate.resume_path = file_path 
     
@@ -366,10 +366,7 @@ async def upload_transcript(
             detail="Candidate not found"
         )
 
-    file_path = save_file(
-        file,
-        "storage/transcripts"
-    )
+    file_path = save_file(file, "transcripts")
 
     candidate.transcript_path = file_path
 
@@ -394,7 +391,7 @@ async def upload_avatar(
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    file_path = save_file(file, "storage/avatars")
+    file_path = save_file(file, "avatars")
     candidate.avatar_path = file_path
     db.commit()
 
