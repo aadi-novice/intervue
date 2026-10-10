@@ -12,9 +12,14 @@ from app.models.analysis import Analysis
 from app.models.interview import Recording
 from app.schemas.analysis import AnalysisResponse, AnalysisStatusResponse
 from app.schemas.interview import (
+    BotRequest,
+    BotSessionOut,
     InterviewCreate,
     InterviewDetail,
     InterviewSummary,
+    RecordingUploadComplete,
+    RecordingUploadRequest,
+    RecordingUploadResponse,
     RecordingUrl,
     SegmentOut,
     SegmentPage,
@@ -23,6 +28,8 @@ from app.schemas.interview import (
 from app.services import (
     analysis_service,
     audit_service,
+    bot_service,
+    recording_service,
     interview_service,
     job_service,
     transcript_service,
@@ -172,3 +179,52 @@ def get_analysis(
     if a is None:
         raise NotFound("No analysis yet", "no_analysis")
     return a
+
+
+# ── notetaker bot ─────────────────────────────────────────────────────────────
+@router.post("/{interview_id}/bot", status_code=202, response_model=BotSessionOut)
+def send_bot(
+    interview_id: int,
+    body: BotRequest | None = None,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    return bot_service.request_bot(db, ctx, interview_id, (body or BotRequest()).mode)
+
+
+@router.delete("/{interview_id}/bot", response_model=BotSessionOut)
+def stop_bot(
+    interview_id: int,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    return bot_service.stop_bot(db, ctx, interview_id)
+
+
+# ── audio/video upload: browser -> S3 (presigned PUT) -> transcriber ──────────
+@router.post("/{interview_id}/recording-upload", response_model=RecordingUploadResponse)
+def start_recording_upload(
+    interview_id: int,
+    body: RecordingUploadRequest,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    interview_service.get_interview(db, ctx, interview_id)
+    return recording_service.start_recording_upload(ctx.org_id, interview_id, body.content_type)
+
+
+@router.post("/{interview_id}/recording-upload/complete", status_code=202)
+def complete_recording_upload(
+    interview_id: int,
+    body: RecordingUploadComplete,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    interview_service.get_interview(db, ctx, interview_id)
+    rec = recording_service.complete_recording_upload(db, ctx.org_id, interview_id, body.key)
+    audit_service.record(db, ctx, "recording.uploaded", "interview", interview_id, recording_id=rec.id)
+    db.commit()
+    from app.worker.tasks.bots import transcribe_upload_task
+
+    transcribe_upload_task.delay(ctx.org_id, interview_id, rec.blob_path)
+    return {"status": "queued", "recording_id": rec.id}

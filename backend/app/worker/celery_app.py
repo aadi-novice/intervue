@@ -9,6 +9,7 @@ celery_app = Celery(
     include=[
         "app.worker.tasks.resume",
         "app.worker.tasks.analysis",
+        "app.worker.tasks.bots",
     ],
 )
 
@@ -25,5 +26,8 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     broker_connection_retry_on_startup=True,
-    beat_schedule={},
+    beat_schedule={
+        "bots-launch-due": {"task": "bots.launch_due", "schedule": 30.0},
+        "bots-reap-stuck": {"task": "bots.reap_stuck", "schedule": 600.0},
+    },
 )

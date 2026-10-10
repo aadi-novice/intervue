@@ -134,3 +134,10 @@ def verify_signature(
     except ValueError:
         return False
     return hmac.compare_digest(sign_body(secret, body, timestamp), signature)
+
+
+def derive_bot_secret(session_id: int) -> str:
+    """Per-session callback secret so one bot container cannot forge another session's events."""
+    return hmac.new(
+        settings.internal_hmac_secret.encode(), f"bot-session:{session_id}".encode(), hashlib.sha256
+    ).hexdigest()

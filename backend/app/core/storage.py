@@ -81,6 +81,23 @@ def presigned_get(key: str, ttl: int | None = None) -> str:
     )
 
 
+def presigned_get_internal(key: str, ttl: int = 3600) -> str:
+    """Longer-lived GET for internal services (transcriber) that may queue before downloading.
+    Never hand these to browsers."""
+    return _client().generate_presigned_url(
+        "get_object",
+        Params={"Bucket": settings.s3_bucket, "Key": key},
+        ExpiresIn=min(ttl, 6 * 3600),
+    )
+
+
+def head(key: str) -> dict | None:
+    try:
+        return _client().head_object(Bucket=settings.s3_bucket, Key=key)
+    except ClientError:
+        return None
+
+
 def presigned_put(key: str, ttl: int, content_type: str) -> str:
     return _client().generate_presigned_url(
         "put_object",

@@ -91,6 +91,8 @@ class BotSession(Base, TimestampMixin, OrgScopedMixin):
         ForeignKey("interviews.id", ondelete="CASCADE"), index=True
     )
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="scheduled")
+    # When the beat scheduler may launch this session (now, or scheduled_start - 1 min)
+    launch_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     failure_reason: Mapped[str | None] = mapped_column(String(50))
     failure_detail: Mapped[str | None] = mapped_column(Text)
     screenshot_key: Mapped[str | None] = mapped_column(String)

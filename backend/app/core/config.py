@@ -69,10 +69,30 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
 
     # Bots / transcriber
+    # Base URL of this API as reachable from bot containers and the transcriber.
+    internal_api_url: str = "http://host.docker.internal:8000"
     bot_launcher: str = "docker"  # docker | ecs | pool
     bot_image: str = "intervue-notetaker-bot:latest"
     bot_name: str = "Intervue Notetaker"
     bot_queue_name: str = "intervue:bot_sessions"
+    bot_docker_network: str | None = None
+    bot_docker_mem_limit: str = "2g"
+    bot_docker_extra_hosts: bool = True  # map host.docker.internal on Linux
+    bot_default_consent: str = (
+        "Hi! Intervue Notetaker is recording and transcribing this meeting so the hiring team "
+        "can take notes. If you do not agree, please tell the interviewer."
+    )
+    bot_max_duration_min: int = 180
+    bot_admission_timeout_min: int = 10
+    bot_alone_timeout_sec: int = 120
+    bot_stuck_after_minutes: int = 240
+    ecs_cluster: str = ""
+    ecs_task_definition: str = ""
+    ecs_subnets: Annotated[list[str], NoDecode] = []
+    ecs_security_groups: Annotated[list[str], NoDecode] = []
+    ecs_container_name: str = "bot"
+    bot_concurrency_per_org: int = 3
+    bot_concurrency_global: int = 20
     transcriber_mode: str = "local"  # local | api
     transcriber_url: str = "http://localhost:8100"
     transcriber_api_key: str = "dev-transcriber-key"
@@ -84,6 +104,13 @@ class Settings(BaseSettings):
     # Observability
     sentry_dsn: str | None = None
     log_level: str = "INFO"
+
+    @field_validator("ecs_subnets", "ecs_security_groups", mode="before")
+    @classmethod
+    def _split_csv(cls, v):
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
 
     @field_validator("cors_origins", mode="before")
     @classmethod

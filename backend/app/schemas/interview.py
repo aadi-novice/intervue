@@ -129,3 +129,22 @@ class RecordingUrl(BaseModel):
     expires_in: int
     mime_type: str
     duration_ms: int | None = None
+
+
+class BotRequest(BaseModel):
+    mode: Literal["now", "scheduled"] = "now"
+
+
+class RecordingUploadRequest(BaseModel):
+    content_type: str
+
+
+class RecordingUploadResponse(BaseModel):
+    upload_url: str
+    key: str
+    headers: dict[str, str]
+    max_bytes: int
+
+
+class RecordingUploadComplete(BaseModel):
+    key: str
