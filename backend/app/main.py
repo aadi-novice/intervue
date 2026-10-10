@@ -8,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.api import (
     analysis,
     auth,
+    calendar,
     candidate,
     dashboard,
     health,
@@ -84,4 +85,5 @@ app.include_router(analysis.router)
 app.include_router(interviews.router)
 app.include_router(ranking.router)
 app.include_router(dashboard.router)
+app.include_router(calendar.router)
 app.include_router(internal.router)

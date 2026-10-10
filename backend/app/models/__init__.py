@@ -28,3 +28,4 @@ from app.models.interview import (  # noqa: F401
 )
 from app.models.analysis import Analysis  # noqa: F401
 from app.models.job import Job  # noqa: F401
+from app.models.calendar import CalendarConnection, CalendarEvent  # noqa: F401

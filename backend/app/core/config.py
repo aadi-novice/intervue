@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     limit_bulk_per_hour: int = 20
     limit_uploads_per_hour: int = 300
 
+    # Calendar auto-join
+    calendar_sync_minutes: int = 5
+    calendar_window_days: int = 14
+    calendar_push_enabled: bool = True  # only takes effect when PUBLIC_API_URL is a public https URL
+
     # Observability
     sentry_dsn: str | None = None
     log_level: str = "INFO"

@@ -25,6 +25,10 @@ PUBLIC = {
     "/auth/reset-password",
     "/auth/oauth/{provider}/login",
     "/auth/oauth/{provider}/callback",
+    # calendar: browser redirect target (identity comes from signed state) and provider webhooks
+    "/calendar/oauth/{provider}/callback",
+    "/webhooks/calendar/google",
+    "/webhooks/calendar/microsoft",
 }
 
 

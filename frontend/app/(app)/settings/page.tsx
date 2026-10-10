@@ -4,6 +4,9 @@ import { Card, Icon, PageHeader, StaggerItem, type IconName } from "@/components
 import { SegmentedButton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/m3";
 import { OrgSettings } from "@/components/settings/org-settings";
 import { MembersSettings } from "@/components/settings/members";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { CalendarIntegrations } from "@/components/settings/calendar-integrations";
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
 
 const SETTINGS_SECTIONS: { icon: IconName; title: string; description: string; tone: string }[] = [
@@ -14,17 +17,30 @@ const SETTINGS_SECTIONS: { icon: IconName; title: string; description: string; t
   { icon: "bolt", title: "Integrations", description: "Connect with ATS, Slack, Google Calendar, and more", tone: "bg-tertiary-container text-on-tertiary-container" },
 ];
 
+const TABS = ["general", "organization", "members", "integrations"];
+
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
+  );
+}
+
+function SettingsContent() {
   const { theme, setTheme } = useTheme();
+  const requested = useSearchParams().get("tab");
+  const [tab, setTab] = useState(requested && TABS.includes(requested) ? requested : "general");
   return (
     <div className="space-y-6 p-4 medium:p-6">
       <PageHeader title="Settings" subtitle="Configure your workspace preferences" />
 
-      <Tabs defaultValue="general">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="max-w-3xl">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="organization">Organization</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
         </TabsList>
         <TabsContent value="general" className="space-y-6 pt-6">
           <Card variant="outlined" className="max-w-3xl p-5">
@@ -67,6 +83,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="members" className="pt-6">
           <MembersSettings />
+        </TabsContent>
+        <TabsContent value="integrations" className="pt-6">
+          <CalendarIntegrations />
         </TabsContent>
       </Tabs>
     </div>
