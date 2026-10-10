@@ -669,8 +669,8 @@ Errors use `{ "detail": str, "code": str }`.
 
 ## 12. Implementation status & deviations (branch `build/spec-m0-m5`)
 
-**Built:** M0 (all), M1 (all), M2, M3, M4 (backend + bot + transcriber + UI), M5 (all).
-**Not built:** M6 calendar auto-join, M7 Teams, M8 Zoom, M9 Jitsi, M10 retention/billing/integrations.
+**Built:** M0 (all), M1 (all), M2, M3, M4 (backend + bot + transcriber + UI), M5 (all), M6 (calendar auto-join).
+**Not built:** M7 Teams, M8 Zoom, M9 Jitsi, M10 retention/consent/export/billing/integrations.
 Backend: 485 unit/API tests + 7 PostgreSQL/pgvector integration tests
 (`PG_TEST_ADMIN_URL=... uv run pytest -m integration`), all migrations reversible and verified on
 real Postgres (`alembic check` clean).
@@ -696,9 +696,13 @@ real Postgres (`alembic check` clean).
 | New tables | — | `jobs` (async status), `intake_batches`, `candidate_reveals`; extra columns `ai_runs.{cache_key,result,job_id}`, `resume_profiles.raw_text`, `bot_sessions.launch_at` |
 | Extra endpoints | — | `GET /dashboard/summary`, `GET /orgs/{id}/usage` (admin), `GET /candidates/{id}/activity`, `GET /roles/{id}/compare`, `POST /candidates/{id}/reveal`, `/interviews/{id}/recording-upload[/complete]`, `/interviews/{id}/cancel` |
 | Backend image | — | needs `ffmpeg` (chunk concat in the post-call pipeline) |
+| Calendar scopes | read events | Google `calendar.events.readonly`, Microsoft `Calendars.Read` (read-only, never write). Google classes the Google scope as *sensitive*: production needs Google's OAuth app verification, and until then unverified apps show a warning and are capped at 100 users. |
+| Calendar sync | sync every 5 min + push | polling window is the next 14 days (no incremental sync tokens); push (Google channels, Graph subscriptions) only activates when `PUBLIC_API_URL` is a public https URL, and is renewed hourly; webhooks are authenticated with a per-connection secret |
+| Calendar auto-join | all / tagged / never | connections are strictly personal (even admins cannot see another user's); `never` still creates interviews; the bot is scheduled 1 min before start, launched immediately if the meeting is already in progress, never auto-retried after a failure, and skipped for Teams/Zoom links and for `interviewer`-role owners |
+| Calendar tags | tag an event | tagging an event with no matched candidate requires choosing one; deleting a connection cancels not-yet-launched bots it scheduled but keeps the interviews |
 
 ### Not verified end-to-end (needs real accounts / hardware)
-A real Google Meet join (selectors and the active-speaker heuristic were only tested against HTML
+Real Google/Microsoft calendar OAuth and push delivery (the calendar adapters are tested against a fake provider only; also needs OAuth clients with the callback URIs registered). A real Google Meet join (selectors and the active-speaker heuristic were only tested against HTML
 fixtures); real OpenAI calls (all LLM paths are tested with mocks; prompts are untuned — run the
 eval set before relying on scores); Docker image builds for the bot and transcriber on GPU; Render
 blueprint and Terraform skeleton were not deployed/applied.
