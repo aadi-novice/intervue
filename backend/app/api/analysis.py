@@ -1,49 +1,38 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException
-)
-
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import OrgContext, get_org_context, require_role
 from app.db.dependencies import get_db
+from app.schemas.analysis import AnalysisStatusResponse
+from app.services import analysis_service, candidate_service, job_service
 
-from app.schemas.analysis import (
-    AnalysisResponse
-)
-
-from app.services.analysis_service import (
-    analyze_candidate
-)
+router = APIRouter(prefix="/analysis", tags=["Analysis"])
 
 
-router = APIRouter(
-    prefix="/analysis",
-    tags=["Analysis"]
-)
+def _status(job) -> AnalysisStatusResponse:
+    if job is None:
+        return AnalysisStatusResponse(status="none")
+    return AnalysisStatusResponse(
+        status=job.status,
+        job_id=job.id,
+        error=job.error if job.status == "failed" else None,
+        analysis_id=(job.result or {}).get("analysis_id"),
+    )
 
 
-@router.post(
-    "/candidates/{candidate_id}",
-    response_model=AnalysisResponse
-)
-async def analyze_candidate_route(
+@router.post("/candidates/{candidate_id}", status_code=202, response_model=AnalysisStatusResponse)
+def analyze_candidate_route(
     candidate_id: int,
-    db: Session = Depends(get_db)
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
 ):
+    job = analysis_service.request_analysis(db, ctx, candidate_id)
+    return AnalysisStatusResponse(status="queued", job_id=job.id)
 
-    try:
 
-        analysis = analyze_candidate(
-            candidate_id,
-            db
-        )
-
-        return analysis
-
-    except Exception as e:
-
-        raise HTTPException(
-            status_code=400,
-            detail=str(e)
-        )
+@router.get("/candidates/{candidate_id}/status", response_model=AnalysisStatusResponse)
+def analysis_status(
+    candidate_id: int, ctx: OrgContext = Depends(get_org_context), db: Session = Depends(get_db)
+):
+    candidate_service.get_candidate(db, ctx, candidate_id)  # 404 / visibility check
+    return _status(job_service.latest(db, ctx.org_id, "analysis", "candidate", candidate_id))

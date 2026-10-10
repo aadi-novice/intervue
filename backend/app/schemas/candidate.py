@@ -63,6 +63,7 @@ class PipelineCandidateResponse(BaseModel):
     resume_path: Optional[str] = None
     transcript_path: Optional[str] = None
     avatar_path: Optional[str] = None
+    avatar_url: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -127,6 +128,7 @@ class CandidateDetailResponse(BaseModel):
 
     # Parsed resume (None if resume not yet uploaded / parsed)
     resume_profile: Optional[ResumeProfileSummary] = None
+    resume_parse_status: str = "no_resume"  # no_resume | pending | ready
 
     # Interview analysis (None if analysis not yet run)
     analysis: Optional[AnalysisSummary] = None

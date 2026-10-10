@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -27,3 +29,10 @@ class AnalysisResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+
+class AnalysisStatusResponse(BaseModel):
+    status: Literal["none", "queued", "running", "completed", "failed"]
+    job_id: int | None = None
+    error: str | None = None
+    analysis_id: int | None = None

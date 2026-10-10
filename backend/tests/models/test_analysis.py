@@ -7,10 +7,10 @@ from app.models.role import Role
 
 
 def _create_candidate(db_session) -> Candidate:
-    role = Role(name="Engineer", experience_level="Senior", experience_required_years=5)
+    role = Role(org_id=1, name="Engineer", experience_level="Senior", experience_required_years=5)
     db_session.add(role)
     db_session.commit()
-    candidate = Candidate(name="Test User", email="test@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Test User", email="test@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
     return candidate
@@ -20,7 +20,7 @@ def test_create_analysis(db_session):
     """An analysis can be created with all required fields."""
     candidate = _create_candidate(db_session)
 
-    analysis = Analysis(
+    analysis = Analysis(org_id=1,
         summary="Strong candidate with good skills.",
         strengths=["Great communication", "Strong coding"],
         weaknesses=["Needs improvement in system design"],
@@ -46,7 +46,7 @@ def test_analysis_candidate_relationship(db_session):
     """An analysis belongs to a candidate, and a candidate has analyses."""
     candidate = _create_candidate(db_session)
 
-    analysis = Analysis(
+    analysis = Analysis(org_id=1,
         summary="Good.",
         strengths=["A"],
         weaknesses=["B"],
@@ -66,7 +66,7 @@ def test_analysis_cascade_delete(db_session):
     """Deleting a candidate deletes its analyses."""
     candidate = _create_candidate(db_session)
 
-    analysis = Analysis(
+    analysis = Analysis(org_id=1,
         summary="Test.",
         strengths=["X"],
         weaknesses=["Y"],

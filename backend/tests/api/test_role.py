@@ -1,5 +1,4 @@
 """Tests for the /roles API endpoints."""
-import json
 
 
 class TestCreateRole:
@@ -22,21 +21,21 @@ class TestCreateRole:
         response = client.post("/roles/", json={})
         assert response.status_code == 422  # Validation error
 
-    def test_create_duplicate_role(self, client):
-        import sqlalchemy.exc
-
+    def test_create_duplicate_role_conflicts(self, client):
         payload = {
             "name": "Unique Role",
             "experience_level": "Mid",
             "experience_required_years": 3,
         }
-        client.post("/roles/", json=payload)
-        # The IntegrityError may propagate directly (async route) or as a 500
-        try:
-            response = client.post("/roles/", json=payload)
-            assert response.status_code == 500
-        except sqlalchemy.exc.IntegrityError:
-            pass  # Acceptable: the constraint was properly enforced
+        assert client.post("/roles/", json=payload).status_code == 200
+        response = client.post("/roles/", json=payload)
+        assert response.status_code == 409
+        assert response.json()["code"] == "role_exists"
+
+    def test_same_role_name_allowed_in_different_orgs(self, client, other_client):
+        payload = {"name": "Shared Name", "experience_level": "Mid", "experience_required_years": 3}
+        assert client.post("/roles/", json=payload).status_code == 200
+        assert other_client.post("/roles/", json=payload).status_code == 200
 
 
 class TestListRoles:

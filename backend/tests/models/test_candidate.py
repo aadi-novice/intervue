@@ -10,11 +10,11 @@ from app.models.role import Role
 
 def test_create_candidate(db_session):
     """A candidate can be created with the required fields."""
-    role = Role(name="Engineer", experience_level="Senior", experience_required_years=5)
+    role = Role(org_id=1, name="Engineer", experience_level="Senior", experience_required_years=5)
     db_session.add(role)
     db_session.commit()
 
-    candidate = Candidate(
+    candidate = Candidate(org_id=1,
         name="Alice Smith",
         email="alice@example.com",
         phone="+1-555-0100",
@@ -35,11 +35,11 @@ def test_create_candidate(db_session):
 
 def test_candidate_default_status(db_session):
     """A candidate's default status should be 'applied'."""
-    role = Role(name="Designer", experience_level="Mid", experience_required_years=3)
+    role = Role(org_id=1, name="Designer", experience_level="Mid", experience_required_years=3)
     db_session.add(role)
     db_session.commit()
 
-    candidate = Candidate(name="Bob", email="bob@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Bob", email="bob@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
 
@@ -48,15 +48,15 @@ def test_candidate_default_status(db_session):
 
 def test_candidate_unique_email(db_session):
     """Candidate email must be unique."""
-    role = Role(name="PM", experience_level="Senior", experience_required_years=5)
+    role = Role(org_id=1, name="PM", experience_level="Senior", experience_required_years=5)
     db_session.add(role)
     db_session.commit()
 
-    c1 = Candidate(name="User A", email="dup@example.com", role_id=role.id)
+    c1 = Candidate(org_id=1, name="User A", email="dup@example.com", role_id=role.id)
     db_session.add(c1)
     db_session.commit()
 
-    dup = Candidate(name="User B", email="dup@example.com", role_id=role.id)
+    dup = Candidate(org_id=1, name="User B", email="dup@example.com", role_id=role.id)
     db_session.add(dup)
     with pytest.raises(IntegrityError):
         db_session.commit()
@@ -65,11 +65,11 @@ def test_candidate_unique_email(db_session):
 
 def test_candidate_role_relationship(db_session):
     """A candidate belongs to a role."""
-    role = Role(name="Data Scientist", experience_level="Senior", experience_required_years=4)
+    role = Role(org_id=1, name="Data Scientist", experience_level="Senior", experience_required_years=4)
     db_session.add(role)
     db_session.commit()
 
-    candidate = Candidate(name="Charlie", email="charlie@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Charlie", email="charlie@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
 
@@ -79,11 +79,11 @@ def test_candidate_role_relationship(db_session):
 
 def test_candidate_nullable_fields(db_session):
     """Phone, resume_path, transcript_path, and avatar_path are nullable."""
-    role = Role(name="DevOps", experience_level="Mid", experience_required_years=3)
+    role = Role(org_id=1, name="DevOps", experience_level="Mid", experience_required_years=3)
     db_session.add(role)
     db_session.commit()
 
-    candidate = Candidate(name="Diana", email="diana@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Diana", email="diana@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
 
@@ -95,12 +95,11 @@ def test_candidate_nullable_fields(db_session):
 
 def test_candidate_cascade_delete(db_session):
     """Deleting a role should cascade delete its candidates."""
-    role = Role(name="QA", experience_level="Junior", experience_required_years=1)
+    role = Role(org_id=1, name="QA", experience_level="Junior", experience_required_years=1)
     db_session.add(role)
     db_session.commit()
-    role_id = role.id
 
-    candidate = Candidate(name="Eve", email="eve@example.com", role_id=role.id)
+    candidate = Candidate(org_id=1, name="Eve", email="eve@example.com", role_id=role.id)
     db_session.add(candidate)
     db_session.commit()
 

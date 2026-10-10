@@ -6,7 +6,6 @@ from app.schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
     PipelineCandidateResponse,
-    CandidateDetailResponse,
     AnalysisSummary,
     ResumeProfileSummary,
     STAGE_COLORS,

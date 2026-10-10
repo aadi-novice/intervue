@@ -1,92 +1,123 @@
-"""Tests for the /analysis API endpoints."""
+"""Tests for the /analysis API endpoints (async job flow)."""
 
 from unittest.mock import patch
 
+from app.models.job import Job
+from tests.factories import make_candidate, make_role
 
-def _create_role_and_candidate(client) -> tuple[int, int]:
-    role_resp = client.post("/roles/", json={
-        "name": "Engineer",
-        "experience_level": "Senior",
-        "experience_required_years": 5,
-    })
-    role_id = role_resp.json()["id"]
-    candidate_resp = client.post("/candidates/", json={
-        "name": "Alice",
-        "email": "alice@example.com",
-        "role_id": role_id,
-    })
-    return role_id, candidate_resp.json()["id"]
+PATCH = "app.services.analysis_service"
+
+SUMMARY = {
+    "summary": "Good candidate.",
+    "strengths": ["Great communication"],
+    "weaknesses": ["Lacks system design"],
+    "technical_score": 85,
+    "communication_score": 80,
+    "confidence_score": 75,
+    "key_moments": [{"moment": "Solved BFS", "signal": "positive"}],
+    "hiring_recommendation": "Hire",
+}
+COMPARE = {"comparisons": [{"claim": "Python expert", "result": "Proficient", "severity": "low"}]}
+CHUNKS = [{"timestamp": "0:00", "speaker": "Interviewer", "text": "Hello"}]
+
+
+def _ready_candidate(db, org):
+    role = make_role(db, org.id)
+    return make_candidate(
+        db,
+        org.id,
+        role.id,
+        resume_path=f"{org.id}/resumes/r.pdf",
+        transcript_path=f"{org.id}/transcripts/t.txt",
+    )
 
 
 class TestAnalyzeCandidate:
-    def test_analysis_missing_resume(self, client):
-        """Analysis should fail when resume is not uploaded."""
-        _, cid = _create_role_and_candidate(client)
+    def test_missing_resume_is_rejected(self, client, db_session, org):
+        role = make_role(db_session, org.id)
+        cand = make_candidate(db_session, org.id, role.id)
 
-        response = client.post(f"/analysis/candidates/{cid}")
-        assert response.status_code == 400
-        assert "resume" in response.json()["detail"].lower()
+        response = client.post(f"/analysis/candidates/{cand.id}")
 
-    @patch("app.services.analysis_service.compare_resume_and_transcript")
-    @patch("app.services.analysis_service.generate_candidate_analysis")
-    @patch("app.services.analysis_service.chunk_transcript")
-    @patch("app.services.analysis_service.load_transcript")
-    @patch("app.services.analysis_service.extract_text_from_pdf")
-    def test_analysis_success(
-        self,
-        mock_extract,
-        mock_load,
-        mock_chunk,
-        mock_summarize,
-        mock_compare,
-        client,
-    ):
-        """A full analysis pipeline should succeed when all data is present."""
-        _, cid = _create_role_and_candidate(client)
+        assert response.status_code == 422
+        assert response.json()["code"] == "no_resume"
 
-        # Upload resume and transcript
-        client.post(f"/candidates/{cid}/resume?file_path=/tmp/test.pdf")
-        client.post(f"/candidates/{cid}/transcript?file_path=/tmp/test.txt")
+    def test_missing_transcript_is_rejected(self, client, db_session, org):
+        role = make_role(db_session, org.id)
+        cand = make_candidate(db_session, org.id, role.id, resume_path="1/resumes/r.pdf")
 
-        # Mock AI responses
-        mock_extract.return_value = "Resume text content"
-        mock_load.return_value = "Transcript text content"
-        mock_chunk.return_value = [
-            {"timestamp": "0:00", "speaker": "Interviewer", "text": "Hello"}
-        ]
-        mock_summarize.return_value = {
-            "summary": "Good candidate.",
-            "strengths": ["Great communication"],
-            "weaknesses": ["Lacks system design"],
-            "technical_score": 85,
-            "communication_score": 80,
-            "confidence_score": 75,
-            "key_moments": [],
-        }
-        mock_compare.return_value = {
-            "comparisons": [{"claim": "Python expert", "result": "Proficient", "severity": "low"}]
-        }
+        response = client.post(f"/analysis/candidates/{cand.id}")
 
-        # Manually set paths (since we can't upload real files in tests)
-        from app.db.dependencies import get_db
-        from app.models.candidate import Candidate
+        assert response.status_code == 422
+        assert response.json()["code"] == "no_transcript"
 
-        # Get a db session to set paths directly
-        for db in get_db():
-            candidate = db.query(Candidate).filter(Candidate.id == cid).first()
-            candidate.resume_path = "https://storage.example.com/resume.pdf"
-            candidate.transcript_path = "https://storage.example.com/transcript.txt"
-            db.commit()
-            break
-
-        response = client.post(f"/analysis/candidates/{cid}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["summary"] == "Good candidate."
-        assert data["technical_score"] == 85
-        assert data["candidate_id"] == cid
-        assert "resume_alignment" in data
-
-    def test_analysis_candidate_not_found(self, client):
+    def test_candidate_not_found(self, client):
         response = client.post("/analysis/candidates/9999")
-        assert response.status_code == 400
+        assert response.status_code == 404
+
+    @patch(f"{PATCH}.compare_resume_and_transcript", return_value=COMPARE)
+    @patch(f"{PATCH}.generate_candidate_analysis", return_value=SUMMARY)
+    @patch(f"{PATCH}.chunk_transcript", return_value=CHUNKS)
+    @patch(f"{PATCH}.load_transcript", return_value="transcript")
+    @patch(f"{PATCH}.extract_text_from_pdf", return_value="resume")
+    def test_success_returns_202_then_status_completed(
+        self, m_extract, m_load, m_chunk, m_summarize, m_compare, client, db_session, org
+    ):
+        cand = _ready_candidate(db_session, org)
+
+        response = client.post(f"/analysis/candidates/{cand.id}")
+        assert response.status_code == 202
+        assert response.json()["status"] == "queued"
+
+        status = client.get(f"/analysis/candidates/{cand.id}/status").json()
+        assert status["status"] == "completed"
+        assert status["analysis_id"] is not None
+
+        detail = client.get(f"/candidates/{cand.id}").json()
+        assert detail["analysis"]["summary"] == "Good candidate."
+        assert detail["analysis"]["technical_score"] == 85
+
+    @patch(f"{PATCH}.chunk_transcript", return_value=CHUNKS)
+    @patch(f"{PATCH}.load_transcript", return_value="transcript")
+    @patch(f"{PATCH}.extract_text_from_pdf", return_value="resume")
+    def test_llm_failure_retries_three_times_then_marks_failed(
+        self, m_extract, m_load, m_chunk, client, db_session, org
+    ):
+        cand = _ready_candidate(db_session, org)
+        with patch(
+            f"{PATCH}.generate_candidate_analysis", side_effect=RuntimeError("llm down")
+        ) as gen:
+            response = client.post(f"/analysis/candidates/{cand.id}")
+            assert response.status_code == 202
+            assert gen.call_count == 4  # first attempt + 3 retries
+
+        status = client.get(f"/analysis/candidates/{cand.id}/status").json()
+        assert status["status"] == "failed"
+        assert "llm down" in status["error"]
+
+    def test_duplicate_request_while_running_conflicts(self, client, db_session, org):
+        cand = _ready_candidate(db_session, org)
+        db_session.add(
+            Job(
+                org_id=org.id,
+                kind="analysis",
+                entity_type="candidate",
+                entity_id=cand.id,
+                status="running",
+            )
+        )
+        db_session.commit()
+
+        response = client.post(f"/analysis/candidates/{cand.id}")
+
+        assert response.status_code == 409
+        assert response.json()["code"] == "job_in_progress"
+
+    def test_status_none_before_any_run(self, client, db_session, org):
+        cand = _ready_candidate(db_session, org)
+        assert client.get(f"/analysis/candidates/{cand.id}/status").json()["status"] == "none"
+
+    def test_other_orgs_candidate_is_404(self, other_client, db_session, org):
+        cand = _ready_candidate(db_session, org)
+        assert other_client.get(f"/analysis/candidates/{cand.id}/status").status_code == 404
+        assert other_client.post(f"/analysis/candidates/{cand.id}").status_code == 404
