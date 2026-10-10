@@ -60,7 +60,7 @@ asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (e.g. AI service calls, integration)",
     "unit: quick unit tests with no external dependencies",
-    "integration: tests that exercise multiple layers (API, DB)",
+    "integration: tests that exercise multiple layers; tests/integration needs PG_TEST_ADMIN_URL (real PostgreSQL + pgvector)",
     "model: database model tests",
     "schema: Pydantic schema validation tests",
     "service: business logic service tests",

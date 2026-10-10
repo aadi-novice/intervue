@@ -45,4 +45,4 @@ class VectorType(TypeDecorator):
             from pgvector.sqlalchemy import Vector
 
             return dialect.type_descriptor(Vector(self.dim))
-        return dialect.type_descriptor(JSON())
+        return dialect.type_descriptor(JSON(none_as_null=True))  # None -> SQL NULL

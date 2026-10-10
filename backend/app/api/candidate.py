@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.extractor import extract_text_from_pdf
 from app.api.deps import OrgContext, get_org_context, require_role
+from app.api.limits import limit_user
 from app.core.errors import Invalid
 from app.db.dependencies import get_db
 from app.schemas.candidate import (
@@ -81,7 +82,10 @@ def delete_candidate(
     return Response(status_code=204)
 
 
-@router.post("/{candidate_id}/resume")
+@router.post(
+    "/{candidate_id}/resume",
+    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
+)
 def upload_resume(
     candidate_id: int,
     file: UploadFile = File(...),
@@ -93,7 +97,10 @@ def upload_resume(
     return {"message": "Resume uploaded successfully", "file_path": key}
 
 
-@router.post("/{candidate_id}/transcript")
+@router.post(
+    "/{candidate_id}/transcript",
+    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
+)
 def upload_transcript(
     candidate_id: int,
     file: UploadFile = File(...),
@@ -110,7 +117,10 @@ def upload_transcript(
     }
 
 
-@router.post("/{candidate_id}/avatar")
+@router.post(
+    "/{candidate_id}/avatar",
+    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
+)
 def upload_avatar(
     candidate_id: int,
     file: UploadFile = File(...),

@@ -21,4 +21,5 @@ class AIRun(Base, TimestampMixin, OrgScopedMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # ok | error | cached
     error: Mapped[str | None] = mapped_column(Text)
     cache_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    job_id: Mapped[int | None] = mapped_column(Integer, index=True)  # attributes cost to a job
     result: Mapped[dict | None] = mapped_column(JSON)

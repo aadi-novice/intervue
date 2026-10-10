@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.deps import OrgContext, get_org_context, require_role
+from app.api.limits import limit_org, limit_user
 from app.core import storage
 from app.core.config import settings
 from app.core.errors import NotFound
@@ -77,7 +78,10 @@ def cancel_interview(
     return interview_service.summary(db, interview_service.cancel(db, ctx, interview_id))
 
 
-@router.post("/{interview_id}/upload")
+@router.post(
+    "/{interview_id}/upload",
+    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
+)
 def upload(
     interview_id: int,
     file: UploadFile = File(...),
@@ -139,7 +143,12 @@ def recording(
     )
 
 
-@router.post("/{interview_id}/analysis", status_code=202, response_model=AnalysisStatusResponse)
+@router.post(
+    "/{interview_id}/analysis",
+    status_code=202,
+    response_model=AnalysisStatusResponse,
+    dependencies=[Depends(limit_org("analysis", "limit_analysis_per_hour"))],
+)
 def request_analysis(
     interview_id: int,
     ctx: OrgContext = Depends(require_role("recruiter")),

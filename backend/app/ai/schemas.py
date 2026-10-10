@@ -105,3 +105,27 @@ class ClaimComparison(BaseModel):
 
 class ClaimCheckOut(BaseModel):
     comparisons: list[ClaimComparison]
+
+
+# ── Ranking ───────────────────────────────────────────────────────────────────
+class CriterionScoreOut(BaseModel):
+    criterion_id: int
+    score: int
+    evidence: list[str]
+    reasoning: str
+
+
+class RankOut(BaseModel):
+    criteria: list[CriterionScoreOut]
+    explanation: str
+
+
+class SuggestedCriterion(BaseModel):
+    name: str
+    description: str
+    weight: float
+    must_have: bool
+
+
+class RubricSuggestOut(BaseModel):
+    criteria: list[SuggestedCriterion]

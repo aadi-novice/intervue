@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import OrgContext, get_org_context, require_role
+from app.api.limits import limit_org
 from app.db.dependencies import get_db
 from app.schemas.analysis import AnalysisStatusResponse
 from app.services import analysis_service, candidate_service, job_service
@@ -11,7 +12,12 @@ from app.services import analysis_service, candidate_service, job_service
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
 
 
-@router.post("/candidates/{candidate_id}", status_code=202, response_model=AnalysisStatusResponse)
+@router.post(
+    "/candidates/{candidate_id}",
+    status_code=202,
+    response_model=AnalysisStatusResponse,
+    dependencies=[Depends(limit_org("analysis", "limit_analysis_per_hour"))],
+)
 def analyze_candidate_route(
     candidate_id: int,
     ctx: OrgContext = Depends(require_role("recruiter")),

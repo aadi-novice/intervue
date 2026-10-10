@@ -10,6 +10,7 @@ celery_app = Celery(
         "app.worker.tasks.resume",
         "app.worker.tasks.analysis",
         "app.worker.tasks.bots",
+        "app.worker.tasks.ranking",
     ],
 )
 

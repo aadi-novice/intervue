@@ -20,7 +20,7 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
 os.environ["EMAIL_BACKEND"] = "console"
-os.environ.setdefault("OPENAI_API_KEY", "sk-test-key")
+os.environ["OPENAI_API_KEY"] = ""  # any un-mocked LLM call fails fast instead of hitting the network
 os.environ.setdefault("S3_BUCKET", "intervue-test")
 os.environ.setdefault("S3_ACCESS_KEY_ID", "testing")
 os.environ.setdefault("S3_SECRET_ACCESS_KEY", "testing")

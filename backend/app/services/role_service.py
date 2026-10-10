@@ -28,12 +28,21 @@ def create_role(db: Session, ctx: OrgContext, data: RoleCreate) -> Role:
         db.rollback()
         raise Conflict("A role with this name already exists", "role_exists")
     db.refresh(role)
+    if role.description:
+        _enqueue_embed(ctx.org_id, role.id)
     return role
+
+
+def _enqueue_embed(org_id: int, role_id: int) -> None:
+    from app.worker.tasks.ranking import embed_role_task
+
+    embed_role_task.delay(org_id, role_id)
 
 
 def update_role(db: Session, ctx: OrgContext, role_id: int, data: RoleUpdate) -> Role:
     role = get_role(db, ctx, role_id)
-    for k, v in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for k, v in changes.items():
         setattr(role, k, v)
     try:
         db.commit()
@@ -41,6 +50,8 @@ def update_role(db: Session, ctx: OrgContext, role_id: int, data: RoleUpdate) ->
         db.rollback()
         raise Conflict("A role with this name already exists", "role_exists")
     db.refresh(role)
+    if "description" in changes or "name" in changes:
+        _enqueue_embed(ctx.org_id, role.id)
     return role
 
 

@@ -73,3 +73,16 @@ class IntakeBatch(Base, TimestampMixin, OrgScopedMixin):
     failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
     errors: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+
+
+class CandidateReveal(Base, TimestampMixin, OrgScopedMixin):
+    """Blind review: a user has chosen to reveal a candidate's identity (logged in audit_logs too)."""
+
+    __tablename__ = "candidate_reveals"
+    __table_args__ = (UniqueConstraint("user_id", "candidate_id", name="uq_candidate_reveals"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[int] = mapped_column(
+        ForeignKey("candidates.id", ondelete="CASCADE"), index=True
+    )

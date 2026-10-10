@@ -100,6 +100,16 @@ class Settings(BaseSettings):
 
     # Ranking
     rank_shortlist_k: int = 50
+    rank_concurrency: int = 8
+    rank_debounce_seconds: int = 30
+    cross_role_min_similarity: float = 0.30
+    cross_role_strong_similarity: float = 0.42
+    cross_role_max_matches: int = 5
+    # Rate limits (per window); keyed by org (rank, analysis, bulk) or user (uploads)
+    limit_rank_per_hour: int = 20
+    limit_analysis_per_hour: int = 60
+    limit_bulk_per_hour: int = 20
+    limit_uploads_per_hour: int = 300
 
     # Observability
     sentry_dsn: str | None = None

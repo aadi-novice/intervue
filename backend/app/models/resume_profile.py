@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, ForeignKey, Index, String
+from sqlalchemy import JSON, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -35,6 +35,7 @@ class ResumeProfile(Base, TimestampMixin, OrgScopedMixin):
     skills: Mapped[dict] = mapped_column(JSON, nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSON, nullable=False)
     content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    raw_text: Mapped[str | None] = mapped_column(Text)  # extracted resume text (ranking evidence)
     embedding: Mapped[list | None] = mapped_column(VectorType(1536))
 
     candidate: Mapped["Candidate"] = relationship(back_populates="resume_profile")

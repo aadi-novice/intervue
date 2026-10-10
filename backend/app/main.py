@@ -5,7 +5,17 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api import analysis, auth, candidate, health, internal, interviews, orgs, role
+from app.api import (
+    analysis,
+    auth,
+    candidate,
+    health,
+    internal,
+    interviews,
+    orgs,
+    ranking,
+    role,
+)
 from app.core.config import settings
 from app.core.errors import install_error_handlers
 from app.core.logging import configure_logging, init_sentry, new_request_id
@@ -71,4 +81,5 @@ app.include_router(role.router)
 app.include_router(candidate.router)
 app.include_router(analysis.router)
 app.include_router(interviews.router)
+app.include_router(ranking.router)
 app.include_router(internal.router)
