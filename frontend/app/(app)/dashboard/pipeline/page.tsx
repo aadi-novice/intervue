@@ -46,6 +46,7 @@ import {
   type StageId,
 } from "@/lib/pipeline-store";
 import { api, type Role } from "@/lib/api";
+import { CAN, roleAllowed, useRole } from "@/lib/roles";
 
 /* Card UI (pure presentational) */
 function CardContent({ candidate }: { candidate: Candidate }) {
@@ -152,6 +153,9 @@ export default function PipelinePage() {
   const fetchCandidates = usePipelineStore((s) => s.fetchCandidates);
   const loading = usePipelineStore((s) => s.loading);
 
+  const role = useRole();
+  const canMove = roleAllowed(role, CAN.moveStage);
+
   const [roles, setRoles] = useState<Role[]>([]);
   const [filterRoleId, setFilterRoleId] = useState<number | null>(null); // null = All
   const [search, setSearch] = useState("");
@@ -183,7 +187,7 @@ export default function PipelinePage() {
 
   const handleDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveId(null); setOverStage(null);
-    if (!over) return;
+    if (!over || !canMove) return; // interviewers are read-only
     const toStage = resolveStage(over.id as string);
     if (!toStage) return;
     const cand = candidates.find((c) => c.id === active.id);
@@ -232,7 +236,7 @@ export default function PipelinePage() {
       {!loading && (
         <div className="flex-1 overflow-hidden">
           <DndContext
-            sensors={sensors}
+            sensors={canMove ? sensors : []}
             collisionDetection={customCollision}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}

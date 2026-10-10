@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Collapsible } from "radix-ui";
@@ -11,6 +12,7 @@ import {
   ClaimCheckBadge,
   CriterionBar,
   Icon,
+  LinearProgress,
   LoadingRegion,
   ScoreRing,
   Skeleton,
@@ -24,7 +26,9 @@ import {
   type IconName,
 } from "@/components/m3";
 import { cn } from "@/lib/utils";
-import { api, BASE_URL, type CandidateDetail, type KeyMoment } from "@/lib/api";
+import { api, type CandidateDetail, type KeyMoment } from "@/lib/api";
+import { CAN, roleAllowed, useRole } from "@/lib/roles";
+import { RequireRole } from "@/components/require-role";
 
 const STAGE_LABELS: Record<string, string> = {
   applied: "Applied",
@@ -81,6 +85,18 @@ export default function CandidateProfilePage() {
   const [showAllKeyMoments, setShowAllKeyMoments] = useState(false);
   const [deletingCandidate, setDeletingCandidate] = useState(false);
   const router = useRouter();
+  const canEdit = roleAllowed(useRole(), CAN.create);
+
+  // Analysis is a background job (202): poll its status while queued/running.
+  const statusQuery = useQuery({
+    queryKey: ["analysis-status", id],
+    queryFn: () => api.analysis.status(id),
+    enabled: !!id,
+    refetchInterval: (q) => (q.state.data?.status === "queued" || q.state.data?.status === "running" ? 2000 : false),
+  });
+  const jobStatus = statusQuery.data?.status;
+  const analysisRunning = analysing || jobStatus === "queued" || jobStatus === "running";
+  const wasRunning = useRef(false);
 
   const handleDeleteCandidate = async () => {
     if (!candidate) return;
@@ -112,6 +128,30 @@ export default function CandidateProfilePage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Job finished: pull the fresh analysis (and surface failures).
+  useEffect(() => {
+    if (jobStatus === "queued" || jobStatus === "running") {
+      wasRunning.current = true;
+    } else if (wasRunning.current && jobStatus === "completed") {
+      wasRunning.current = false;
+      setAnalysisMsg({ ok: true, text: "✓ Analysis complete" });
+      reload();
+    } else if (wasRunning.current && jobStatus === "failed") {
+      wasRunning.current = false;
+      setAnalysisMsg({ ok: false, text: statusQuery.data?.error || "Analysis failed" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobStatus]);
+
+  // Resume parsing is async too: poll the candidate while it is pending.
+  const parsePending = candidate?.resume_parse_status === "pending";
+  useEffect(() => {
+    if (!parsePending) return;
+    const t = setInterval(reload, 3000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsePending, id]);
 
   if (loading) return <DetailSkeleton />;
 
@@ -177,6 +217,7 @@ export default function CandidateProfilePage() {
       <input
         type="file"
         accept={accept}
+        disabled={!canEdit}
         className="sr-only"
         onChange={async (e) => {
           const f = e.target.files?.[0];
@@ -202,11 +243,13 @@ export default function CandidateProfilePage() {
         </Link>
         <Icon name="chevron_right" size={18} />
         <span className="text-on-surface">{candidate.name}</span>
-        <div className="ms-auto">
-          <Button variant="outlined" size="sm" icon="delete" loading={deletingCandidate} onClick={handleDeleteCandidate} className="text-error">
-            {deletingCandidate ? "Deleting…" : "Delete Candidate"}
-          </Button>
-        </div>
+        <RequireRole roles={CAN.create}>
+          <div className="ms-auto">
+            <Button variant="outlined" size="sm" icon="delete" loading={deletingCandidate} onClick={handleDeleteCandidate} className="text-error">
+              {deletingCandidate ? "Deleting…" : "Delete Candidate"}
+            </Button>
+          </div>
+        </RequireRole>
       </div>
 
       <div className="grid grid-cols-1 gap-5 large:grid-cols-12">
@@ -215,11 +258,11 @@ export default function CandidateProfilePage() {
           <StaggerItem index={0}>
             <Card variant="filled" className="p-5">
               <div className="flex items-center gap-3">
-                <label className="group relative shrink-0 cursor-pointer rounded-md focus-within:outline-3 focus-within:outline-secondary" title="Click to change photo">
+                <label className="group relative shrink-0 cursor-pointer rounded-md focus-within:outline-3 focus-within:outline-secondary" title={canEdit ? "Click to change photo" : undefined}>
                   <CandidateAvatar
                     name={candidate.name}
                     initials={candidate.avatar}
-                    src={candidate.avatar_path ? `${BASE_URL}${candidate.avatar_path}` : null}
+                    src={candidate.avatar_url}
                     size="lg"
                     shape="rounded"
                   />
@@ -229,6 +272,7 @@ export default function CandidateProfilePage() {
                   <input
                     type="file"
                     accept="image/*"
+                    disabled={!canEdit}
                     className="sr-only"
                     aria-label="Change photo"
                     onChange={async (e) => {
@@ -247,7 +291,17 @@ export default function CandidateProfilePage() {
 
               <div className="mt-4 flex items-center justify-between">
                 <span className={cn("inline-flex h-6 items-center rounded-sm px-2 label-m", stageTone(candidate.stage).chip)}>{stageLabel}</span>
-                {p && (
+                {parsePending && (
+            <Card variant="outlined" className="space-y-3 p-5" role="status" aria-busy="true">
+              <p className="label-l text-on-surface-variant">Parsing resume…</p>
+              <LinearProgress aria-label="Parsing resume" />
+              <Skeleton className="h-4 w-2/3 rounded-sm" />
+              <Skeleton className="h-4 w-1/2 rounded-sm" />
+              <Skeleton className="h-24 rounded-md" />
+            </Card>
+          )}
+
+          {p && (
                   <span className="body-s text-on-surface-variant">
                     <span className="font-semibold text-on-surface tabular-nums">{p.metadata?.total_experience_years ?? "—"}</span> yrs exp
                   </span>
@@ -304,29 +358,49 @@ export default function CandidateProfilePage() {
                   {analysisMsg.text}
                 </p>
               )}
-              <Button
-                className="mt-3 w-full"
-                variant="tonal"
-                icon="refresh"
-                loading={analysing}
-                disabled={!candidate.resume_path || !candidate.transcript_path}
-                onClick={async () => {
-                  setAnalysing(true);
-                  setAnalysisMsg(null);
-                  try {
-                    await api.candidates.triggerAnalysis(candidate.id);
-                    setAnalysisMsg({ ok: true, text: "✓ Analysis complete — refreshing…" });
-                    setTimeout(reload, 800);
-                  } catch (e) {
-                    setAnalysisMsg({ ok: false, text: (e as Error).message || "Analysis failed" });
-                  } finally {
-                    setAnalysing(false);
-                  }
-                }}
-              >
-                {analysing ? "Running…" : candidate.analysis ? "Re-run Analysis" : "Run AI Analysis"}
-              </Button>
-              {!candidate.resume_path || !candidate.transcript_path ? (
+              {candidate.resume_url && (
+                <a
+                  href={candidate.resume_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="focus-ring mt-2 flex items-center justify-center gap-1 rounded-xs label-l text-primary hover:underline"
+                >
+                  <Icon name="open_in_new" size={16} /> Open resume
+                </a>
+              )}
+              {analysisRunning && (
+                <div className="mt-3 space-y-1" role="status">
+                  <LinearProgress aria-label="Analysis in progress" />
+                  <p className="text-center label-s text-on-surface-variant">
+                    {jobStatus === "running" ? "Analysing…" : "Queued for analysis…"}
+                  </p>
+                </div>
+              )}
+              <RequireRole roles={CAN.create}>
+                <Button
+                  className="mt-3 w-full"
+                  variant="tonal"
+                  icon="refresh"
+                  loading={analysisRunning}
+                  disabled={!candidate.resume_path || !candidate.transcript_path}
+                  onClick={async () => {
+                    setAnalysing(true);
+                    setAnalysisMsg(null);
+                    try {
+                      await api.candidates.triggerAnalysis(candidate.id);
+                      wasRunning.current = true;
+                      await statusQuery.refetch();
+                    } catch (e) {
+                      setAnalysisMsg({ ok: false, text: (e as Error).message || "Analysis failed" });
+                    } finally {
+                      setAnalysing(false);
+                    }
+                  }}
+                >
+                  {analysisRunning ? "Analysing…" : candidate.analysis ? "Re-run Analysis" : "Run AI Analysis"}
+                </Button>
+              </RequireRole>
+              {canEdit && (!candidate.resume_path || !candidate.transcript_path) ? (
                 <p className="mt-2 text-center label-s text-on-surface-variant">Upload both files to run analysis</p>
               ) : null}
             </Card>

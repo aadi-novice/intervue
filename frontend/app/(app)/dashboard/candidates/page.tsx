@@ -20,6 +20,8 @@ import {
   toneText,
 } from "@/components/m3";
 import { cn } from "@/lib/utils";
+import { RequireRole } from "@/components/require-role";
+import { CAN } from "@/lib/roles";
 import { api, type PipelineCandidate } from "@/lib/api";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -83,9 +85,11 @@ export default function TalentPoolPage() {
         title="Talent Pool"
         subtitle={loading ? "Loading…" : `${candidates.length} candidates across all roles`}
         actions={
-          <Button asChild icon="add">
-            <Link href="/candidate/new">Add Candidate</Link>
-          </Button>
+          <RequireRole roles={CAN.create}>
+            <Button asChild icon="add">
+              <Link href="/candidate/new">Add Candidate</Link>
+            </Button>
+          </RequireRole>
         }
       />
 
@@ -137,9 +141,11 @@ export default function TalentPoolPage() {
         </LoadingRegion>
       ) : processed.length === 0 ? (
         <EmptyState icon="groups" title={search ? "No candidates match your search" : "No candidates yet"}>
-          <Link href="/candidate/new" className="text-primary hover:underline">
-            Add your first candidate →
-          </Link>
+          <RequireRole roles={CAN.create}>
+            <Link href="/candidate/new" className="text-primary hover:underline">
+              Add your first candidate →
+            </Link>
+          </RequireRole>
         </EmptyState>
       ) : (
         <Card variant="outlined" className="overflow-x-auto">
@@ -195,14 +201,16 @@ export default function TalentPoolPage() {
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <IconButton
-                      icon="delete"
-                      label={`Delete ${c.name}`}
-                      size="sm"
-                      className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:text-error"
-                      disabled={deletingId === c.id}
-                      onClick={() => handleDelete(c)}
-                    />
+                    <RequireRole roles={CAN.create}>
+                      <IconButton
+                        icon="delete"
+                        label={`Delete ${c.name}`}
+                        size="sm"
+                        className="opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 hover:text-error"
+                        disabled={deletingId === c.id}
+                        onClick={() => handleDelete(c)}
+                      />
+                    </RequireRole>
                   </td>
                 </StaggerItem>
               ))}

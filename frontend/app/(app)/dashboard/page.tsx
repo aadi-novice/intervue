@@ -19,6 +19,8 @@ import {
   type IconName,
 } from "@/components/m3";
 import { cn } from "@/lib/utils";
+import { RequireRole } from "@/components/require-role";
+import { CAN } from "@/lib/roles";
 import { api, type Role, type PipelineCandidate } from "@/lib/api";
 
 const VELOCITY = [
@@ -135,18 +137,22 @@ export default function DashboardPage() {
             <Card variant="outlined" className="p-5 expanded:col-span-3">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="title-l">Active Roles</h2>
-                <Button asChild variant="text" size="sm" trailingIcon="chevron_right">
-                  <Link href="/roles/new">New Role</Link>
-                </Button>
+                <RequireRole roles={CAN.create}>
+                  <Button asChild variant="text" size="sm" trailingIcon="chevron_right">
+                    <Link href="/roles/new">New Role</Link>
+                  </Button>
+                </RequireRole>
               </div>
 
               <div className="space-y-3">
                 {roles.length === 0 && (
                   <p className="py-6 text-center body-m text-on-surface-variant">
                     No roles yet.{" "}
-                    <Link href="/roles/new" className="text-primary hover:underline">
-                      Post one →
-                    </Link>
+                    <RequireRole roles={CAN.create}>
+                      <Link href="/roles/new" className="text-primary hover:underline">
+                        Post one →
+                      </Link>
+                    </RequireRole>
                   </p>
                 )}
                 {roles.map((role, i) => {
@@ -196,23 +202,27 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </Link>
-                        <IconButton
-                          icon="delete"
-                          label={`Delete ${role.name}`}
-                          size="sm"
-                          className="absolute end-2 top-2 hover:text-error"
-                          disabled={deletingId === role.id}
-                          onClick={() => handleDeleteRole(role)}
-                        />
+                        <RequireRole roles={CAN.create}>
+                          <IconButton
+                            icon="delete"
+                            label={`Delete ${role.name}`}
+                            size="sm"
+                            className="absolute end-2 top-2 hover:text-error"
+                            disabled={deletingId === role.id}
+                            onClick={() => handleDeleteRole(role)}
+                          />
+                        </RequireRole>
                       </div>
                     </StaggerItem>
                   );
                 })}
               </div>
 
-              <Button asChild variant="outlined" className="mt-4 w-full">
-                <Link href="/roles/new">Post New Role</Link>
-              </Button>
+              <RequireRole roles={CAN.create}>
+                <Button asChild variant="outlined" className="mt-4 w-full">
+                  <Link href="/roles/new">Post New Role</Link>
+                </Button>
+              </RequireRole>
             </Card>
 
             <div className="flex flex-col gap-4 expanded:col-span-2">

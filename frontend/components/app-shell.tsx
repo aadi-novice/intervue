@@ -23,6 +23,7 @@ import {
 } from "@/components/m3";
 import { useMotionPattern } from "@/app/theme/motion";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CAN, roleAllowed, useRole } from "@/lib/roles";
 
 const DESTINATIONS: NavDestination[] = [
   { id: "dashboard", label: "Dashboard", icon: "dashboard", href: "/dashboard" },
@@ -54,6 +55,9 @@ const renderLink = (p: { href: string; className: string; children: React.ReactN
 
 function NewMenu({ children, side }: { children: React.ReactNode; side?: "top" | "bottom" | "right" }) {
   const router = useRouter();
+  const role = useRole();
+  // Recruiters and admins create; other roles get no create entry points.
+  if (role !== null && !roleAllowed(role, CAN.create)) return null;
   return (
     <Menu>
       <MenuTrigger asChild>{children}</MenuTrigger>
@@ -101,9 +105,11 @@ export interface AppShellProps {
   orgSwitcher?: React.ReactNode;
   /** Avatar menu slot. */
   avatarMenu?: React.ReactNode;
+  /** Full-width banner rendered between the top app bar and the page (e.g. unverified email). */
+  banner?: React.ReactNode;
 }
 
-export default function AppShell({ children, orgSwitcher, avatarMenu }: AppShellProps) {
+export default function AppShell({ children, orgSwitcher, avatarMenu, banner }: AppShellProps) {
   const pathname = usePathname();
   const size = useWindowSizeClass();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -165,6 +171,8 @@ export default function AppShell({ children, orgSwitcher, avatarMenu }: AppShell
               containerClassName="mx-auto h-12 max-w-xl"
             />
           </TopAppBar>
+
+          {banner}
 
           <main id="main" ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">
             {/* Fade through between top-level destinations (enter animation keyed by destination). */}

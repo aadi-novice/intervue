@@ -20,6 +20,8 @@ import {
   type IconName,
 } from "@/components/m3";
 import { cn } from "@/lib/utils";
+import { RequireRole } from "@/components/require-role";
+import { CAN } from "@/lib/roles";
 import { api, type Role, type PipelineCandidate, type CandidateDetail } from "@/lib/api";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -187,9 +189,11 @@ export default function ComparePage() {
           {roles.length === 0 && (
             <p className="body-m text-on-surface-variant">
               No roles yet —{" "}
-              <Link href="/roles/new" className="text-primary hover:underline">
-                post one
-              </Link>
+              <RequireRole roles={CAN.create} fallback="ask a recruiter to add one">
+                <Link href="/roles/new" className="text-primary hover:underline">
+                  post one
+                </Link>
+              </RequireRole>
               .
             </p>
           )}
