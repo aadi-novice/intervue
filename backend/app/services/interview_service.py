@@ -215,6 +215,12 @@ def attach_transcript(
         iv.status = "completed"
     audit_service.record(db, ctx, "interview.transcript_uploaded", "interview", iv.id, segments=len(parsed))
     db.commit()
+    from app.services import webhook_service
+
+    webhook_service.emit(db, ctx.org_id, "interview.completed", {
+        "interview_id": iv.id, "candidate_id": iv.candidate_id, "role_id": iv.role_id,
+        "platform": iv.platform, "status": iv.status, "has_transcript": True,
+    })
     if old:
         try:
             storage.delete(old)

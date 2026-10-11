@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class AnalysisResponse(BaseModel):
@@ -31,6 +31,11 @@ class AnalysisResponse(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+    @field_validator("strengths", "weaknesses", "key_moments", "resume_alignment", mode="before")
+    @classmethod
+    def _none_is_empty(cls, v):
+        return [] if v is None else v
 
 
 class AnalysisStatusResponse(BaseModel):

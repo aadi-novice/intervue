@@ -42,13 +42,13 @@ def make_key(org_id: int | str, prefix: str, ext: str) -> str:
     return f"{org_id}/{prefix}/{uuid.uuid4()}.{ext}"
 
 
+def _sse() -> dict:
+    return {"ServerSideEncryption": settings.s3_server_side_encryption} if settings.s3_server_side_encryption else {}
+
+
 def put(key: str, fileobj: BinaryIO | bytes, content_type: str) -> str:
     _client().put_object(
-        Bucket=settings.s3_bucket,
-        Key=key,
-        Body=fileobj,
-        ContentType=content_type,
-        ServerSideEncryption="AES256",
+        Bucket=settings.s3_bucket, Key=key, Body=fileobj, ContentType=content_type, **_sse()
     )
     return key
 
@@ -66,7 +66,7 @@ def upload_file(key: str, path: str, content_type: str) -> str:
     """Multipart-capable upload of a local file."""
     _client().upload_file(
         path, settings.s3_bucket, key,
-        ExtraArgs={"ContentType": content_type, "ServerSideEncryption": "AES256"},
+        ExtraArgs={"ContentType": content_type, **_sse()},
     )
     return key
 

@@ -193,6 +193,15 @@ def analyze_interview(db: Session, org_id: int, interview_id: int) -> Analysis:
     iv.status = "completed"
     db.commit()
     db.refresh(analysis)
+    from app.services import webhook_service
+
+    webhook_service.emit(db, org_id, "analysis.completed", {
+        "analysis_id": analysis.id, "interview_id": iv.id, "candidate_id": cand.id,
+        "role_id": analysis.role_id, "technical_score": analysis.technical_score,
+        "communication_score": analysis.communication_score,
+        "confidence_score": analysis.confidence_score,
+        "hiring_recommendation": analysis.hiring_recommendation,
+    })
     return analysis
 
 

@@ -279,13 +279,18 @@ class TestAutoJoinPolicy:
         assert db_session.query(BotSession).count() == 0
         assert events_of(db_session, conn)["e1"].skip_reason == reason
 
-    def test_teams_and_zoom_interviews_are_created_but_the_bot_is_skipped(self, db_session, org, user, cand, fake):
+    def test_teams_gets_the_bot_but_zoom_is_created_without_one(self, db_session, org, user, cand, fake, launcher):
         fake.google_items = [g_event("t", attendees=["cand@x.com"], link=TEAMS),
                              g_event("z", attendees=["cand@x.com"], link="https://a.zoom.us/j/12345")]
         conn = make_connection(db_session, org, user, auto_join="all")
         sync(db_session, conn, fake)
-        assert db_session.query(Interview).count() == 2 and db_session.query(BotSession).count() == 0
-        assert {e.skip_reason for e in events_of(db_session, conn).values()} == {"platform_unsupported"}
+        assert db_session.query(Interview).count() == 2
+        evs = events_of(db_session, conn)
+        teams_iv = db_session.get(Interview, evs["t"].interview_id)
+        assert teams_iv.platform == "teams" and len(teams_iv.bot_sessions) == 1 and evs["t"].skip_reason is None
+        zoom_iv = db_session.get(Interview, evs["z"].interview_id)
+        assert zoom_iv.platform == "zoom" and zoom_iv.bot_sessions == []
+        assert evs["z"].skip_reason == "platform_unsupported"
 
     def test_interviewer_role_owners_cannot_auto_schedule_bots(self, db_session, org, cand, fake, role_client):
         from app.models.tenancy import User

@@ -55,7 +55,7 @@ def _client_ip(request: Request) -> str | None:
 
 def _me(db: Session, user: User) -> MeResponse:
     orgs = [
-        OrgSummary(id=o.id, name=o.name, slug=o.slug, role=role, settings=o.settings or {})
+        OrgSummary(id=o.id, name=o.name, slug=o.slug, role=role, settings=org_service.public_settings(o.settings))
         for o, role in org_service.list_user_orgs(db, user)
     ]
     return MeResponse(user=UserResponse.from_user(user), orgs=orgs)

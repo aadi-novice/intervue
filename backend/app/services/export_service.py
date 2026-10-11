@@ -48,7 +48,7 @@ from app.models import (
     TranscriptSegment,
     User,
 )
-from app.services import audit_service, job_service
+from app.services import audit_service, job_service, org_service
 
 log = logging.getLogger(__name__)
 KIND = "export"
@@ -123,7 +123,9 @@ def build_export(db: Session, org_id: int, job_id: int, include_recordings: bool
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "export.zip"
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
-            tables["organization"] = _write_table(zf, "organization", [_row(org)])
+            org_row = _row(org)
+            org_row["settings"] = org_service.public_settings(org.settings)  # no encrypted secrets
+            tables["organization"] = _write_table(zf, "organization", [org_row])
             members = (
                 db.query(Membership, User).join(User, User.id == Membership.user_id)
                 .filter(Membership.org_id == org_id).all()

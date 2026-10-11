@@ -16,6 +16,11 @@ ALLOWED_SETTINGS = {
 }
 
 
+def public_settings(settings: dict | None) -> dict:
+    """Org settings safe to send to browsers: drops encrypted secrets such as the Slack URL."""
+    return {k: v for k, v in (settings or {}).items() if not k.endswith("_enc")}
+
+
 def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:60] or "org"
 

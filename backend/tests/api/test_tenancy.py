@@ -30,11 +30,13 @@ PUBLIC = {
     "/webhooks/calendar/google",
     "/webhooks/calendar/microsoft",
 }
+# the public API authenticates with API keys, not user sessions (covered by test_integrations.py)
+PUBLIC_PREFIXES = ("/public/v1",)
 
 
 def _protected_routes():
     for r in app.routes:
-        if isinstance(r, APIRoute) and r.path not in PUBLIC:
+        if isinstance(r, APIRoute) and r.path not in PUBLIC and not r.path.startswith(PUBLIC_PREFIXES):
             for m in sorted(r.methods - {"HEAD", "OPTIONS"}):
                 yield m, r.path
 

@@ -193,3 +193,22 @@ class TestRecording:
         assert r["expires_in"] <= 900 and "X-Amz-Signature" in r["url"] and r["mime_type"] == "audio/ogg"
         assert db_session.query(AuditLog).filter_by(action="recording.accessed", entity_id=str(iv.id)).count() == 1
         assert client.get(f"/interviews/{iv.id}").json()["has_recording"] is True
+
+
+@pytest.fixture()
+def cand_for_null(db_session, org):
+    return make_candidate(db_session, org.id, make_role(db_session, org.id, "Null Role").id, "null@example.com")
+
+
+def test_analysis_endpoint_tolerates_null_json_columns(client, db_session, org, cand_for_null):
+    """Older/partial rows may have NULL key_moments/resume_alignment: must not 500."""
+    from app.models.analysis import Analysis
+    from tests.factories import make_interview
+
+    iv = make_interview(db_session, org.id, cand_for_null)
+    db_session.add(Analysis(org_id=org.id, interview_id=iv.id, candidate_id=cand_for_null.id, summary="s",
+                            strengths=[], weaknesses=[], key_moments=None, resume_alignment=None,
+                            technical_score=1, communication_score=1, confidence_score=1))
+    db_session.commit()
+    r = client.get(f"/interviews/{iv.id}/analysis")
+    assert r.status_code == 200 and r.json()["key_moments"] == [] and r.json()["resume_alignment"] == []

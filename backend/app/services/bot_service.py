@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 ACTIVE = ("launching", "joining", "waiting_admission", "in_call", "leaving")
 NON_TERMINAL = ("scheduled", *ACTIVE)
-SUPPORTED_PLATFORMS = ("google_meet",)  # Teams: M7, Zoom: M8
+SUPPORTED_PLATFORMS = ("google_meet", "teams")  # Zoom: M8
 ORDER = {s: i for i, s in enumerate(
     ("scheduled", "launching", "joining", "waiting_admission", "in_call", "leaving", "completed", "failed")
 )}
@@ -63,7 +63,7 @@ def schedule_bot(db: Session, org: Organization, iv: Interview, mode: str = "now
     sync). Caller commits audit entries; this commits the session and launches when mode=now."""
     if not iv.meeting_url or iv.platform not in SUPPORTED_PLATFORMS:
         raise Invalid(
-            "The notetaker supports Google Meet links for now. Upload a transcript or recording instead.",
+            "The notetaker supports Google Meet and Microsoft Teams links. Upload a transcript or recording instead.",
             "platform_unsupported",
         )
     if iv.status in ("cancelled", "completed"):
@@ -315,6 +315,11 @@ def handle_event(db: Session, session: BotSession, payload: dict) -> None:
             f"Reason: {session.failure_reason}. You can upload a recording or transcript instead.",
             f"/interviews/{iv.id}",
         )
+        from app.services import slack_service
+
+        slack_service.announce(db, session.org_id, "bot.failed", {
+            "interview_id": iv.id, "reason": session.failure_reason,
+        })
         if session.chunks:  # salvage partial recordings
             iv.status = "processing"
             db.commit()

@@ -22,6 +22,12 @@ def rank_role_task(self, org_id: int, role_id: int, job_id: int):
             job_service.set_status(db, job_id, "queued", error=f"retrying: {exc}")
             raise self.retry(exc=exc, countdown=retry_delay(self.request.retries))
         job_service.set_status(db, job_id, "completed", result=result)
+        from app.services import webhook_service
+
+        webhook_service.emit(db, org_id, "ranking.completed", {
+            "role_id": role_id, "scored": result.get("scored", 0), "failed": result.get("failed", 0),
+            "shortlisted": result.get("shortlisted", 0), "cost_usd": result.get("cost_usd", 0),
+        })
         # resumes that arrived while we were scoring get a follow-up (debounced) run
         if ranking_service.unscored_count(db, org_id, role_id):
             ranking_service.schedule_rank(org_id, role_id)

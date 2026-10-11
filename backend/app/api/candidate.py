@@ -108,7 +108,7 @@ def upload_resume(
     _rate: None = Depends(limit_user("upload", "limit_uploads_per_hour")),
 ):
     key = candidate_service.upload(db, ctx, candidate_id, file, "resumes")
-    candidate_service.enqueue_resume_parse(ctx.org_id, candidate_id)
+    candidate_service.enqueue_resume_parse(db, ctx.org_id, candidate_id)
     return {"message": "Resume uploaded successfully", "file_path": key}
 
 

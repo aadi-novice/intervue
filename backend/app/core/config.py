@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     s3_access_key_id: str | None = None
     s3_secret_access_key: str | None = None
     s3_presign_ttl_seconds: int = 900
+    # Server-side encryption header sent on uploads: "" (default) sends none, which is right for
+    # MinIO without KMS and Cloudflare R2 (always encrypted at rest) and for AWS S3 (encrypts all
+    # new objects with SSE-S3 by default). Set AES256 or aws:kms to require it explicitly.
+    s3_server_side_encryption: str = ""
 
     # LLM
     openai_api_key: str = ""
@@ -115,6 +119,14 @@ class Settings(BaseSettings):
     ai_cache_retention_days: int = 30  # cached AI results contain candidate text
     export_retention_days: int = 7
     limit_export_per_hour: int = 3
+
+    # Integrations (M10b)
+    webhook_allow_private: bool = False  # dev only: allow localhost/private targets
+    webhook_allow_insecure: bool = False  # dev only: allow http:// targets
+    webhook_max_endpoints_per_org: int = 10
+    webhook_max_attempts: int = 6
+    webhook_disable_after_failures: int = 20
+    api_rate_limit_per_hour: int = 600  # per public API key
 
     # Calendar auto-join
     calendar_sync_minutes: int = 5

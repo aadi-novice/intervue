@@ -206,10 +206,18 @@ def delete_candidate(db: Session, ctx: OrgContext, candidate_id: int) -> None:
     erase_candidate(db, ctx, candidate_id, action="candidate.deleted")
 
 
-def _parse_status(c: Candidate, p: ResumeProfile | None) -> str:
+def _parse_status(db: Session, org_id: int, c: Candidate, p: ResumeProfile | None) -> tuple[str, str | None]:
+    """(status, error): no_resume | pending | ready | failed."""
     if p:
-        return "ready"
-    return "pending" if c.resume_path else "no_resume"
+        return "ready", None
+    if not c.resume_path:
+        return "no_resume", None
+    from app.services import job_service
+
+    job = job_service.latest(db, org_id, "resume_parse", "candidate", c.id)
+    if job is not None and job.status == "failed":
+        return "failed", job.error
+    return "pending", None
 
 
 def detail(db: Session, ctx: OrgContext, candidate_id: int) -> CandidateDetailResponse:
@@ -244,6 +252,7 @@ def detail(db: Session, ctx: OrgContext, candidate_id: int) -> CandidateDetailRe
             skills=p.skills,
             metadata=p.metadata_,
         )
+    parse_status, parse_error = _parse_status(db, ctx.org_id, c, p)
     return CandidateDetailResponse(
         id=str(c.id),
         name=c.name,
@@ -258,7 +267,8 @@ def detail(db: Session, ctx: OrgContext, candidate_id: int) -> CandidateDetailRe
         avatar_url=_url(c.avatar_path),
         resume_url=_url(c.resume_path),
         resume_profile=profile,
-        resume_parse_status=_parse_status(c, p),
+        resume_parse_status=parse_status,
+        resume_parse_error=parse_error,
         analysis=analysis_out,
         **_identity(c),
     )
@@ -282,10 +292,15 @@ def upload(db: Session, ctx: OrgContext, candidate_id: int, file: UploadFile, ki
     return key
 
 
-def enqueue_resume_parse(org_id: int, candidate_id: int) -> None:
+def enqueue_resume_parse(db: Session, org_id: int, candidate_id: int) -> None:
+    from app.services import job_service
     from app.worker.tasks.resume import parse_resume
 
-    parse_resume.delay(org_id, candidate_id)
+    try:
+        job = job_service.create(db, org_id, "resume_parse", "candidate", candidate_id)
+    except Conflict:
+        return  # already queued/running: it will pick up the newest file
+    parse_resume.delay(org_id, candidate_id, job.id)
 
 
 def upload_transcript_as_interview(
