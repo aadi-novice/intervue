@@ -159,7 +159,8 @@ def summary(db: Session, iv: Interview) -> InterviewSummary:
         role_id=iv.role_id, role_name=role.name if role else None, title=iv.title,
         scheduled_start=iv.scheduled_start, scheduled_end=iv.scheduled_end,
         meeting_url=iv.meeting_url, platform=iv.platform, status=iv.status,
-        bot_status=_bot_status(iv), created_at=iv.created_at,
+        bot_status=_bot_status(iv), transcript_purged=iv.transcript_purged_at is not None,
+        created_at=iv.created_at,
     )
 
 
@@ -214,6 +215,12 @@ def attach_transcript(
         iv.status = "completed"
     audit_service.record(db, ctx, "interview.transcript_uploaded", "interview", iv.id, segments=len(parsed))
     db.commit()
+    from app.services import webhook_service
+
+    webhook_service.emit(db, ctx.org_id, "interview.completed", {
+        "interview_id": iv.id, "candidate_id": iv.candidate_id, "role_id": iv.role_id,
+        "platform": iv.platform, "status": iv.status, "has_transcript": True,
+    })
     if old:
         try:
             storage.delete(old)
@@ -243,3 +250,35 @@ def cancel(db: Session, ctx: OrgContext, interview_id: int) -> Interview:
     iv.status = "cancelled"
     db.commit()
     return iv
+
+
+def notify_candidate(db: Session, ctx: OrgContext, interview_id: int) -> dict:
+    """Email the candidate the schedule, the meeting link and the recording notice."""
+    from app.core import email as mailer
+    from app.services import bot_service
+
+    iv = get_interview(db, ctx, interview_id)
+    cand = db.get(Candidate, iv.candidate_id)
+    if cand is None or not cand.email or cand.email.endswith("@resume.invalid"):
+        raise Invalid("This candidate has no usable email address", "no_candidate_email")
+    when = (
+        iv.scheduled_start.strftime("%A %d %B %Y, %H:%M UTC") if iv.scheduled_start else "to be confirmed"
+    )
+    lines = [
+        f"Hello {cand.name},",
+        "",
+        f"{ctx.org.name} would like to speak with you: {iv.title}.",
+        f"When: {when}",
+    ]
+    if iv.meeting_url:
+        lines += [f"Join: {iv.meeting_url}", "",
+                  "Recording notice: this meeting may be recorded and transcribed so the hiring team can "
+                  "take notes. A message will be posted in the meeting chat when the notetaker joins.",
+                  f'Message the team will see: "{bot_service.consent_message_for(ctx.org)}"',
+                  "If you are not comfortable with this, reply to this email before the meeting."]
+    else:
+        lines += ["", "Details will follow from the hiring team."]
+    mailer.send_email(cand.email, f"Interview with {ctx.org.name}: {iv.title}", "\n".join(lines))
+    audit_service.record(db, ctx, "interview.candidate_notified", "interview", iv.id)
+    db.commit()
+    return {"sent_to": cand.email}

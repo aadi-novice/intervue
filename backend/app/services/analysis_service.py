@@ -46,7 +46,7 @@ def _check_ready(db: Session, org_id: int, iv: Interview) -> None:
 def request_interview_analysis(db: Session, ctx: OrgContext, interview_id: int) -> Job:
     iv = interview_service.get_interview(db, ctx, interview_id)
     _check_ready(db, ctx.org_id, iv)
-    job = job_service.create(db, ctx.org_id, JOB_KIND, "interview", iv.id)
+    job = job_service.create(db, ctx.org_id, JOB_KIND, "interview", iv.id, requested_by=ctx.user.id)
     audit_service.record(db, ctx, "analysis.requested", "interview", iv.id)
     db.commit()
     from app.worker.tasks.analysis import run_analysis_task
@@ -94,7 +94,8 @@ def generate_notes(db: Session, org_id: int, interview_id: int) -> InterviewNote
     iv, segs = _load(db, org_id, interview_id)
     role = db.get(Role, iv.role_id) if iv.role_id else None
     out = generate_interview_notes(
-        transcript_service.format_for_llm(segs), role.name if role else "the role", org_id
+        transcript_service.format_for_llm(segs), role.name if role else "the role", org_id,
+        iv.candidate_id,
     )
     note = iv.notes or InterviewNote(org_id=org_id, interview_id=iv.id)
     note.summary = out.summary
@@ -132,8 +133,8 @@ def analyze_interview(db: Session, org_id: int, interview_id: int) -> Analysis:
     resume_text = extract_text_from_pdf(cand.resume_path)
     transcript_text = transcript_service.format_for_llm(segs)
 
-    summary = generate_interview_analysis(resume_text, transcript_text, org_id)
-    claims = check_resume_claims(resume_text, transcript_text, org_id)
+    summary = generate_interview_analysis(resume_text, transcript_text, org_id, cand.id)
+    claims = check_resume_claims(resume_text, transcript_text, org_id, cand.id)
 
     # Evidence or it didn't happen: strengths/weaknesses/moments must cite real candidate lines.
     def cited(points):
@@ -192,6 +193,15 @@ def analyze_interview(db: Session, org_id: int, interview_id: int) -> Analysis:
     iv.status = "completed"
     db.commit()
     db.refresh(analysis)
+    from app.services import webhook_service
+
+    webhook_service.emit(db, org_id, "analysis.completed", {
+        "analysis_id": analysis.id, "interview_id": iv.id, "candidate_id": cand.id,
+        "role_id": analysis.role_id, "technical_score": analysis.technical_score,
+        "communication_score": analysis.communication_score,
+        "confidence_score": analysis.confidence_score,
+        "hiring_recommendation": analysis.hiring_recommendation,
+    })
     return analysis
 
 

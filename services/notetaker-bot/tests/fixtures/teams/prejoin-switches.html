@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Microsoft Teams</title></head>
+<body>
+  <main id="prejoin">
+    <h1>Choose your audio and video settings for</h1>
+    <input type="text" placeholder="Enter name" data-tid="prejoin-display-name-input" value="">
+    <div role="switch" tabindex="0" id="cam" aria-label="Camera" aria-checked="true">Camera</div>
+    <div role="switch" tabindex="0" id="mic" aria-label="Microphone" aria-checked="true">Microphone</div>
+    <button type="button" aria-label="Video effects and background settings">Effects</button>
+    <button type="button" data-tid="prejoin-join-button" id="join"><span>Join now</span></button>
+  </main>
+  <main id="lobby" hidden><h2>Waiting for the organizer to let you in</h2></main>
+  <script>
+    window.state = { micOff: false, camOff: false, joinedName: null };
+    for (const [id, key] of [["cam", "camOff"], ["mic", "micOff"]]) {
+      const el = document.getElementById(id);
+      el.onclick = () => { window.state[key] = el.getAttribute("aria-checked") === "true"; el.setAttribute("aria-checked", String(!window.state[key])); };
+    }
+    document.getElementById("join").onclick = () => {
+      window.state.joinedName = document.querySelector("input").value;
+      document.getElementById("prejoin").hidden = true;
+      document.getElementById("lobby").hidden = false;
+    };
+  </script>
+</body></html>

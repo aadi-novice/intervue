@@ -196,7 +196,7 @@ def compute_overall(scores: list[dict], criteria: list[RubricCriterion]) -> tupl
     return round(overall, 1), failed
 
 
-def _llm_score(org_id, job_id, role_summary, crit_payload, text_) -> RankOut:
+def _llm_score(org_id, job_id, role_summary, crit_payload, text_, candidate_id=None) -> RankOut:
     return llm.complete_json(
         purpose="rank",
         prompt_version=rank_v1.VERSION,
@@ -205,6 +205,7 @@ def _llm_score(org_id, job_id, role_summary, crit_payload, text_) -> RankOut:
         org_id=org_id,
         temperature=0.0,
         job_id=job_id,
+        candidate_id=candidate_id,
     )
 
 
@@ -279,7 +280,8 @@ def rank_role(db: Session, org_id: int, role_id: int, job_id: int) -> dict:
         for m in runnable:
             jobs[
                 pool.submit(
-                    _llm_score, org_id, job_id, role_summary, crit_payload, texts[m.candidate_id]
+                    _llm_score, org_id, job_id, role_summary, crit_payload, texts[m.candidate_id],
+                    m.candidate_id,
                 )
             ] = m
         for fut in as_completed(jobs):
@@ -351,11 +353,11 @@ def unscored_count(db: Session, org_id: int, role_id: int) -> int:
     )
 
 
-def request_rank(db: Session, org_id: int, role_id: int) -> Job:
+def request_rank(db: Session, org_id: int, role_id: int, user_id: int | None = None) -> Job:
     criteria = rubric_service.list_criteria(db, org_id, role_id)
     if not criteria:
         raise Invalid("Define a rubric before ranking", "no_rubric")
-    job = job_service.create(db, org_id, RANK_KIND, "role", role_id)
+    job = job_service.create(db, org_id, RANK_KIND, "role", role_id, requested_by=user_id)
     from app.worker.tasks.ranking import rank_role_task
 
     rank_role_task.delay(org_id, role_id, job.id)

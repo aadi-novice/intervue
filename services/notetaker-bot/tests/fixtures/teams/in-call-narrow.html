@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Microsoft Teams</title></head>
+<body>
+  <!-- Narrow layout: Chat is hidden under "More"; the chat box is already open on the second variant via ?open -->
+  <nav>
+    <button type="button" id="more" aria-label="More">More</button>
+    <button type="button" aria-label="Leave">Leave</button>
+  </nav>
+  <div id="menu" role="menu" hidden><div role="menuitem" id="chatitem">Chat</div></div>
+  <section id="chat" hidden>
+    <textarea role="textbox" aria-label="Type a message"></textarea>
+  </section>
+  <script>
+    window.chatMessages = [];
+    const ta = document.querySelector("textarea");
+    document.getElementById("more").onclick = () => { document.getElementById("menu").hidden = false; };
+    document.getElementById("chatitem").onclick = () => { document.getElementById("chat").hidden = false; document.getElementById("menu").hidden = true; };
+    if (location.search.includes("open")) document.getElementById("chat").hidden = false;
+    // Enter does NOT send in this variant: forces the Send-button fallback.
+    ta.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
+    const send = document.createElement("button");
+    send.type = "button"; send.setAttribute("aria-label", "Send"); send.textContent = "Send";
+    send.onclick = () => { window.chatMessages.push(ta.value); ta.value = ""; };
+    document.getElementById("chat").appendChild(send);
+  </script>
+</body></html>

@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import crontab
 
 from app.core.config import settings
 
@@ -12,6 +13,8 @@ celery_app = Celery(
         "app.worker.tasks.bots",
         "app.worker.tasks.ranking",
         "app.worker.tasks.calendar",
+        "app.worker.tasks.compliance",
+        "app.worker.tasks.integrations",
     ],
 )
 
@@ -36,5 +39,7 @@ celery_app.conf.update(
             "schedule": float(settings.calendar_sync_minutes * 60),
         },
         "calendar-renew-watches": {"task": "calendar.renew_watches", "schedule": 3600.0},
+        "webhooks-retry-due": {"task": "webhooks.retry_due", "schedule": 60.0},
+        "retention-nightly": {"task": "compliance.retention_nightly", "schedule": crontab(hour=3, minute=0)},
     },
 )

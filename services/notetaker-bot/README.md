@@ -1,6 +1,6 @@
 # Intervue notetaker bot
 
-Node 22 + TypeScript + Playwright. One process/container per meeting: joins a Google Meet as a guest, records the
+Node 22 + TypeScript + Playwright. One process/container per meeting: joins a Google Meet or Microsoft Teams meeting as a guest, records the
 meeting audio (PulseAudio null sink -> ffmpeg -> 16 kHz mono Opus, 30 s chunks), observes the active speaker and
 reports to the backend. Spec: `docs/SPEC.md` section 6.
 
@@ -36,7 +36,7 @@ All requests carry `X-Timestamp` (unix seconds) and `X-Signature = hex(hmac_sha2
 
 ## Layout
 `src/adapters/types.ts` (MeetingAdapter), `src/adapters/google-meet/{index,selectors}.ts` (all selectors, incl. the
-active-speaker heuristic, in `selectors.ts`), `teams/` and `zoom/` stubs (M7/M8), `session.ts` (state machine + leave
+active-speaker heuristic, in `selectors.ts`), `teams/{index,selectors}.ts` (M7, same layout as Meet; the active-speaker heuristic is `scanParticipants` in `teams/selectors.ts`), `zoom/` stub (M8), `session.ts` (state machine + leave
 conditions), `recorder.ts` (ffmpeg + chunk watcher), `backend-client.ts`, `speaker-tracker.ts`, `config.ts`, `browser.ts`.
 
 ## Develop
@@ -46,7 +46,7 @@ npm run build        # tsc
 npm run lint         # tsc --noEmit incl. tests
 npm test             # vitest unit tests
 npx playwright install chromium-headless-shell
-npm run test:e2e     # adapter tests against tests/fixtures/google-meet/*.html
+npm run test:e2e     # adapter tests against tests/fixtures/{google-meet,teams}/*.html
 ```
 Local run (needs Linux with Xvfb/PulseAudio/ffmpeg, or use the Docker image):
 ```
@@ -56,5 +56,28 @@ docker run --rm -e BOT_SESSION_ID=... -e MEETING_URL=https://meet.google.com/xxx
 ```
 Keep the Dockerfile base tag (`v1.64.0-noble`) in lockstep with the `playwright` version in `package.json`.
 
+## Microsoft Teams (M7)
+Adapter: `src/adapters/teams/`. Joins **Teams on the web as a guest, without signing in**.
+- Supported URLs (https, exact host match): `teams.microsoft.com/l/meetup-join/...`, `teams.microsoft.com/meet/...`,
+  `teams.live.com/meet/...`. Look-alike hosts (`teams.microsoft.com.evil.io`) are rejected.
+- Flow: launcher interstitial -> "Continue on this browser" -> pre-join: name field = `BOT_NAME`, camera and mic forced OFF,
+  "Join now" -> lobby ("Someone in the meeting should let you in soon") -> in call. Consent message is posted via the
+  Chat pane (Enter, falling back to the Send button).
+- Speaker detection reads participant tiles / roster rows (explicit speaking markers, animated voice-level outline, or a
+  "speaking" aria-label). "(Guest)", "(You)", "(External)" etc. are stripped from names.
+- Failure reasons: `guests_not_allowed` (anonymous join blocked / sign-in required), `meeting_not_found`,
+  `blocked_by_host` (denied/removed while waiting), `ui_changed` (+ screenshot) when an expected control is missing.
+
+Known limitations:
+- Tenants whose policy blocks anonymous/guest join, or meetings that require sign-in, **cannot be joined** (the bot never
+  signs in). Meeting options "Who can bypass the lobby" decide whether the bot waits in the lobby (organizer/presenter must
+  admit it) or enters directly; with "Only me" or "People in my org" the bot always waits or is refused.
+- Teams is joined through the browser only; the desktop-app prompt is ignored. Chromium on Linux is used, so tenants that
+  block unsupported browsers are not supported.
+- **Selectors are UNVERIFIED against real Teams.** The UI differs between tenants, rollout rings and A/B tests, and changes
+  often. Everything was only exercised against our own HTML fixtures in `tests/fixtures/teams/`. Every guess is marked
+  `UNVERIFIED against real Teams` in `selectors.ts`. A synthetic monitor against a real test meeting is required before
+  relying on it.
+
 ## Caveat
-Selectors and the speaker heuristic are verified only against the HTML fixtures, not a live Meet. Fix UI drift in `selectors.ts`.
+Selectors and the speaker heuristic (Meet and Teams) are verified only against the HTML fixtures, not a live meeting. Fix UI drift in each platform's `selectors.ts`.

@@ -102,10 +102,12 @@ def delete_connection(
 @router.post(
     "/calendar/connections/{connection_id}/sync",
     status_code=202,
-    dependencies=[Depends(limit_user("calendar_sync", "limit_uploads_per_hour"))],
 )
 def sync_now(
-    connection_id: int, ctx: OrgContext = Depends(get_org_context), db: Session = Depends(get_db)
+    connection_id: int,
+    ctx: OrgContext = Depends(get_org_context),
+    db: Session = Depends(get_db),
+    _rate: None = Depends(limit_user("calendar_sync", "limit_uploads_per_hour")),
 ):
     calendar_service._own_connection(db, ctx, connection_id)  # 404 unless it is yours
     from app.worker.tasks.calendar import sync_connection_task

@@ -168,6 +168,12 @@ def finish_transcription(db: Session, org_id: int, job_id: int) -> None:
     iv.status = "completed"
     job.status = "completed"
     db.commit()
+    from app.services import webhook_service
+
+    webhook_service.emit(db, org_id, "interview.completed", {
+        "interview_id": iv.id, "candidate_id": iv.candidate_id, "role_id": iv.role_id,
+        "platform": iv.platform, "status": "completed", "has_transcript": True,
+    })
 
     # notes, then analysis if ready (resume present + a speaker mapped to the candidate)
     try:
@@ -211,6 +217,12 @@ def _notify(db: Session, iv: Interview, analysed: bool) -> None:
     )
     mailer.send_email(
         user.email, f"Transcript ready: {iv.title}", f"The transcript for {iv.title} is ready. {extra}\n{link}"
+    )
+    from app.services import notification_service
+
+    notification_service.notify(
+        db, iv.org_id, user.id, "transcript_ready", f"Transcript ready: {iv.title}", extra,
+        f"/interviews/{iv.id}",
     )
 
 

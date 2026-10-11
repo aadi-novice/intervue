@@ -127,11 +127,38 @@ def test_deleting_candidate_deletes_all_blobs(s3, client, cand, db_session, org)
     assert not any(storage.exists(k) for k in (resume, transcript, rec_key))
 
 
-def test_resume_parse_failure_does_not_break_upload(s3, client, cand):
+def test_unreadable_resume_ends_in_a_failed_state_not_an_endless_spinner(s3, client, cand):
     with patch("app.services.resume_service.extract_text_from_pdf", side_effect=RuntimeError("bad pdf lib")):
         r = _up(client, cand.id, "resume", PDF, "r.pdf", "application/pdf")
-    assert r.status_code == 200
-    assert client.get(f"/candidates/{cand.id}").json()["resume_parse_status"] == "pending"
+    assert r.status_code == 200  # the upload itself still succeeds
+    d = client.get(f"/candidates/{cand.id}").json()
+    assert d["resume_parse_status"] == "failed" and "could not read" in d["resume_parse_error"].lower()
+    assert d["resume_url"]  # the file is still downloadable
+
+
+def test_empty_resume_reports_the_specific_reason(s3, client, cand):
+    with patch("app.services.resume_service.extract_text_from_pdf", return_value=""):
+        _up(client, cand.id, "resume", PDF, "r.pdf", "application/pdf")
+    d = client.get(f"/candidates/{cand.id}").json()
+    assert d["resume_parse_status"] == "failed" and "text" in d["resume_parse_error"].lower()
+
+
+@patch("app.services.resume_service.extract_resume_profile", return_value=PROFILE)
+def test_uploading_a_better_file_after_a_failure_recovers(m_parse, s3, client, cand):
+    with patch("app.services.resume_service.extract_text_from_pdf", side_effect=RuntimeError("unreadable")):
+        _up(client, cand.id, "resume", PDF, "bad.pdf", "application/pdf")
+    assert client.get(f"/candidates/{cand.id}").json()["resume_parse_status"] == "failed"
+    with patch("app.services.resume_service.extract_text_from_pdf", return_value="Alice resume text"):
+        _up(client, cand.id, "resume", PDF + b"v2", "good.pdf", "application/pdf")
+    d = client.get(f"/candidates/{cand.id}").json()
+    assert d["resume_parse_status"] == "ready" and d["resume_parse_error"] is None
+
+
+@patch("app.services.resume_service.extract_resume_profile", return_value=PROFILE)
+def test_a_transient_failure_that_clears_on_retry_ends_ready(m_parse, s3, client, cand):
+    with patch("app.services.resume_service.extract_text_from_pdf", side_effect=[RuntimeError("blip"), "Alice resume text"]):
+        _up(client, cand.id, "resume", PDF, "r.pdf", "application/pdf")
+    assert client.get(f"/candidates/{cand.id}").json()["resume_parse_status"] == "ready"
 
 
 def test_healthz_and_readyz(anon_client):

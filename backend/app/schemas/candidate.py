@@ -133,7 +133,8 @@ class CandidateDetailResponse(BaseModel):
 
     # Parsed resume (None if resume not yet uploaded / parsed)
     resume_profile: Optional[ResumeProfileSummary] = None
-    resume_parse_status: str = "no_resume"  # no_resume | pending | ready
+    resume_parse_status: str = "no_resume"  # no_resume | pending | ready | failed
+    resume_parse_error: Optional[str] = None  # why parsing failed (shown to the user)
 
     # Interview analysis (None if analysis not yet run)
     analysis: Optional[AnalysisSummary] = None

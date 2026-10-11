@@ -11,6 +11,9 @@ import { NotesPanel } from "@/components/interviews/notes-panel";
 import { SpeakerMapping } from "@/components/interviews/speaker-mapping";
 import { TranscriptPane } from "@/components/interviews/transcript-pane";
 import { UploadPanel } from "@/components/interviews/upload-panel";
+import { NotifyCandidateButton } from "@/components/interviews/notify-candidate";
+import { PurgedBanner, TranscriptPurgedContext } from "@/components/compliance/purged";
+import "@/lib/api-compliance";
 import { ApiError } from "@/lib/api";
 import { failureMessage, isBotActive, parseSegmentTarget } from "@/lib/interviews-logic";
 import { useInterview, useRecording, useTranscript } from "@/lib/queries/interviews";
@@ -55,8 +58,9 @@ function InterviewDetailView({ id }: { id: string }) {
 
   const data = iv.data;
   const processing = data?.status === "processing";
-  const transcript = useTranscript(id, (!!data && data.segment_count > 0) || processing, processing);
-  const recording = useRecording(id, !!data?.has_recording);
+  const purged = !!data?.transcript_purged;
+  const transcript = useTranscript(id, !purged && ((!!data && data.segment_count > 0) || processing), processing);
+  const recording = useRecording(id, !!data?.has_recording && !purged);
   const noRecording = recording.error instanceof ApiError && recording.error.code === "no_recording";
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = transcript;
@@ -108,12 +112,15 @@ function InterviewDetailView({ id }: { id: string }) {
   const failed = botStatus === "failed" && bot;
 
   return (
+    <TranscriptPurgedContext.Provider value={purged}>
     <div className="space-y-5 p-4 medium:p-6">
       <div className="flex flex-wrap items-center gap-2 body-m text-on-surface-variant">
         <Link href="/interviews" className="focus-ring flex items-center gap-1 rounded-xs hover:text-on-surface">
           <Icon name="arrow_back" size={18} /> Interviews
         </Link>
       </div>
+
+      {purged && <PurgedBanner />}
 
       <Card variant="filled" className="space-y-4 p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -166,6 +173,14 @@ function InterviewDetailView({ id }: { id: string }) {
             hasStart={!!data.scheduled_start}
             canEdit={canEdit && data.status !== "cancelled"}
           />
+          {canEdit && data.status !== "cancelled" && (
+            <NotifyCandidateButton
+              interviewId={data.id}
+              candidateName={data.candidate_name}
+              scheduledStart={data.scheduled_start}
+              meetingUrl={data.meeting_url}
+            />
+          )}
           <p className="flex max-w-md items-start gap-2 body-s text-on-surface-variant">
             <Icon name="info" size={18} />
             <span>
@@ -197,7 +212,12 @@ function InterviewDetailView({ id }: { id: string }) {
               <Icon name="sync" size={18} className="animate-m3-spin" /> Transcribing… the transcript appears here when it is ready.
             </div>
           )}
-          {src && !noRecording && (
+          {purged && (
+            <Card variant="outlined" className="border-dashed p-8 text-center body-m text-on-surface-variant">
+              The transcript and recording are no longer available.
+            </Card>
+          )}
+          {!purged && src && !noRecording && (
             <AudioPlayer
               ref={audio}
               src={src}
@@ -207,7 +227,7 @@ function InterviewDetailView({ id }: { id: string }) {
               }}
             />
           )}
-          {transcript.isLoading ? (
+          {purged ? null : transcript.isLoading ? (
             <Skeleton className="h-64 rounded-md" />
           ) : segments.length > 0 ? (
             <TranscriptPane
@@ -224,8 +244,8 @@ function InterviewDetailView({ id }: { id: string }) {
               </Card>
             )
           )}
-          <SpeakerMapping interview={data} canEdit={canEdit} hasAudioOnly={data.has_recording && data.platform === "upload"} />
-          {canEdit && <UploadPanel interviewId={data.id} processing={processing} />}
+          {!purged && <SpeakerMapping interview={data} canEdit={canEdit} hasAudioOnly={data.has_recording && data.platform === "upload"} />}
+          {canEdit && !purged && <UploadPanel interviewId={data.id} processing={processing} />}
         </TabsContent>
 
         <TabsContent value="notes" className="pt-4">
@@ -237,6 +257,7 @@ function InterviewDetailView({ id }: { id: string }) {
         </TabsContent>
       </Tabs>
     </div>
+    </TranscriptPurgedContext.Provider>
   );
 }
 

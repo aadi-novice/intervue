@@ -27,6 +27,7 @@ import { api, type CandidateDetail } from "@/lib/api";
 import type { InterviewAnalysis } from "@/lib/api-interviews";
 import { CAN, roleAllowed, useRole } from "@/lib/roles";
 import { RequireRole } from "@/components/require-role";
+import { EraseCandidateAction } from "@/components/compliance/erase-candidate-dialog";
 import { AnalysisView } from "@/components/interviews/analysis-panel";
 import { InterviewRow } from "@/components/interviews/interviews-explorer";
 import { ScheduleDialog } from "@/components/interviews/schedule-dialog";
@@ -35,6 +36,8 @@ import { CandidateMatchesCard } from "@/components/ranking/candidate-matches-car
 import { useCandidateActivity, useInterviews } from "@/lib/queries/interviews";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
+import { isParseFailed, isParsePending } from "@/lib/resume-parse";
+import { ResumeParseFailedBanner } from "@/components/candidate/resume-parse-failed";
 import { uploadErrorMessage } from "@/lib/interviews-logic";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -254,7 +257,8 @@ export default function CandidateProfilePage() {
   }, [id]);
 
   // Resume parsing is async: poll the candidate while it is pending.
-  const parsePending = candidate?.resume_parse_status === "pending";
+  const parsePending = isParsePending(candidate);
+  const parseFailed = isParseFailed(candidate);
   useEffect(() => {
     if (!parsePending) return;
     const t = setInterval(reload, 3000);
@@ -418,6 +422,7 @@ export default function CandidateProfilePage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
+          {parseFailed && <ResumeParseFailedBanner error={candidate.resume_parse_error} />}
           {parsePending && (
             <Card variant="outlined" className="space-y-3 p-5" role="status" aria-busy="true">
               <p className="label-l text-on-surface-variant">Parsing resume…</p>
@@ -458,6 +463,7 @@ export default function CandidateProfilePage() {
         </TabsContent>
 
         <TabsContent value="resume" className="space-y-4 pt-4">
+          {parseFailed && <ResumeParseFailedBanner error={candidate.resume_parse_error} />}
           <Card variant="outlined" className="space-y-3 p-5">
             <label className="state-layer relative flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-outline-variant p-3 focus-within:outline-3 focus-within:outline-secondary">
               {uploading === "resume" ? (
@@ -473,7 +479,7 @@ export default function CandidateProfilePage() {
               </div>
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.docx"
                 disabled={!canEdit}
                 className="sr-only"
                 onChange={(e) => {
@@ -615,6 +621,19 @@ export default function CandidateProfilePage() {
           </TabsContent>
         )}
       </Tabs>
+
+      <RequireRole roles={CAN.create}>
+        <Card variant="outlined" className="flex flex-wrap items-center justify-between gap-3 border-error/40 p-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="title-m text-error">Danger zone</h2>
+            <p className="body-s text-on-surface-variant">
+              Erase all data permanently removes this candidate, their files, recordings, analyses and cached AI text,
+              and returns a receipt. Use this for right-to-erasure requests.
+            </p>
+          </div>
+          <EraseCandidateAction candidateId={candidate.id} candidateName={candidate.name} />
+        </Card>
+      </RequireRole>
 
       <ScheduleDialog open={schedule} onOpenChange={setSchedule} candidateId={Number(candidate.id)} />
     </div>

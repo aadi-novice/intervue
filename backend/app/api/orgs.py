@@ -28,13 +28,13 @@ def create_org(
     body: OrgCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     org = org_service.create_org(db, user, body.name)
-    return OrgSummary(id=org.id, name=org.name, slug=org.slug, role="admin", settings=org.settings)
+    return OrgSummary(id=org.id, name=org.name, slug=org.slug, role="admin", settings=org_service.public_settings(org.settings))
 
 
 @router.get("/me", response_model=list[OrgSummary])
 def my_orgs(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return [
-        OrgSummary(id=o.id, name=o.name, slug=o.slug, role=r, settings=o.settings or {})
+        OrgSummary(id=o.id, name=o.name, slug=o.slug, role=r, settings=org_service.public_settings(o.settings))
         for o, r in org_service.list_user_orgs(db, user)
     ]
 
@@ -48,7 +48,7 @@ def accept_invitation(
     except AuthError as e:
         _raise(e)
     return OrgSummary(
-        id=m.org.id, name=m.org.name, slug=m.org.slug, role=m.role, settings=m.org.settings or {}
+        id=m.org.id, name=m.org.name, slug=m.org.slug, role=m.role, settings=org_service.public_settings(m.org.settings)
     )
 
 
@@ -85,4 +85,4 @@ def remove_member(org_id: int, user_id: int, ctx: OrgContext = Depends(require_r
 def update_settings(org_id: int, body: OrgSettingsUpdate, ctx: OrgContext = Depends(require_role()),
                     db: Session = Depends(get_db)):
     org = org_service.update_settings(db, ctx, body.model_dump(exclude_none=True))
-    return OrgSummary(id=org.id, name=org.name, slug=org.slug, role=ctx.role, settings=org.settings)
+    return OrgSummary(id=org.id, name=org.name, slug=org.slug, role=ctx.role, settings=org_service.public_settings(org.settings))

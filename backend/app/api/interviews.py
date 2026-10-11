@@ -80,13 +80,13 @@ def cancel_interview(
 
 @router.post(
     "/{interview_id}/upload",
-    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
 )
 def upload(
     interview_id: int,
     file: UploadFile = File(...),
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_user("upload", "limit_uploads_per_hour")),
 ):
     return interview_service.upload_to_interview(db, ctx, interview_id, file)
 
@@ -147,12 +147,12 @@ def recording(
     "/{interview_id}/analysis",
     status_code=202,
     response_model=AnalysisStatusResponse,
-    dependencies=[Depends(limit_org("analysis", "limit_analysis_per_hour"))],
 )
 def request_analysis(
     interview_id: int,
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_org("analysis", "limit_analysis_per_hour")),
 ):
     job = analysis_service.request_interview_analysis(db, ctx, interview_id)
     return AnalysisStatusResponse(status="queued", job_id=job.id)
@@ -237,3 +237,13 @@ def complete_recording_upload(
 
     transcribe_upload_task.delay(ctx.org_id, interview_id, rec.blob_path)
     return {"status": "queued", "recording_id": rec.id}
+
+
+@router.post("/{interview_id}/notify-candidate")
+def notify_candidate(
+    interview_id: int,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    """Email the candidate the time, link and the recording notice (consent text of this org)."""
+    return interview_service.notify_candidate(db, ctx, interview_id)

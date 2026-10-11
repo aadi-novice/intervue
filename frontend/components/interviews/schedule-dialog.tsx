@@ -109,7 +109,7 @@ export function ScheduleDialog({
             {platform && !botSupported(platform) && (
               <p className={cn("mt-2 flex items-start gap-2 rounded-md bg-match-medium-container p-3 body-s text-on-match-medium-container")}>
                 <Icon name="info" size={18} />
-                Teams and Zoom aren&apos;t supported by the notetaker yet. You can still schedule the interview and upload a transcript or recording afterwards.
+                Zoom isn&apos;t supported by the notetaker yet. You can still schedule the interview and upload a transcript or recording afterwards.
               </p>
             )}
           </div>

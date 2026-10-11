@@ -4,8 +4,10 @@ import { Card, Icon, PageHeader, StaggerItem, type IconName } from "@/components
 import { SegmentedButton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/m3";
 import { OrgSettings } from "@/components/settings/org-settings";
 import { MembersSettings } from "@/components/settings/members";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { PrivacySettings } from "@/components/settings/privacy-settings";
+import { IntegrationsAdmin } from "@/components/integrations/integrations-admin";
 import { CalendarIntegrations } from "@/components/settings/calendar-integrations";
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
 
@@ -17,7 +19,7 @@ const SETTINGS_SECTIONS: { icon: IconName; title: string; description: string; t
   { icon: "bolt", title: "Integrations", description: "Connect with ATS, Slack, Google Calendar, and more", tone: "bg-tertiary-container text-on-tertiary-container" },
 ];
 
-const TABS = ["general", "organization", "members", "integrations"];
+const TABS = ["general", "organization", "members", "integrations", "privacy"];
 
 export default function SettingsPage() {
   return (
@@ -29,8 +31,15 @@ export default function SettingsPage() {
 
 function SettingsContent() {
   const { theme, setTheme } = useTheme();
-  const requested = useSearchParams().get("tab");
-  const [tab, setTab] = useState(requested && TABS.includes(requested) ? requested : "general");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const requested = params.get("tab");
+  // The URL is the source of truth so `/settings?tab=privacy` links (notifications) work, also while mounted.
+  const tab = requested && TABS.includes(requested) ? requested : "general";
+  const setTab = (next: string) => {
+    router.replace(next === "general" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+  };
   return (
     <div className="space-y-6 p-4 medium:p-6">
       <PageHeader title="Settings" subtitle="Configure your workspace preferences" />
@@ -41,6 +50,7 @@ function SettingsContent() {
           <TabsTrigger value="organization">Organization</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="privacy">Data &amp; privacy</TabsTrigger>
         </TabsList>
         <TabsContent value="general" className="space-y-6 pt-6">
           <Card variant="outlined" className="max-w-3xl p-5">
@@ -86,6 +96,10 @@ function SettingsContent() {
         </TabsContent>
         <TabsContent value="integrations" className="pt-6">
           <CalendarIntegrations />
+          <IntegrationsAdmin />
+        </TabsContent>
+        <TabsContent value="privacy" className="pt-6">
+          <PrivacySettings onEditNotice={() => setTab("organization")} />
         </TabsContent>
       </Tabs>
     </div>

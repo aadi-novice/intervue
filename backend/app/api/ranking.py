@@ -89,13 +89,13 @@ def suggest_status(role_id: int, ctx: OrgContext = Depends(get_org_context), db:
 @router.post(
     "/roles/{role_id}/resumes/bulk",
     status_code=202,
-    dependencies=[Depends(limit_org("bulk", "limit_bulk_per_hour"))],
 )
 def bulk_resumes(
     role_id: int,
     files: list[UploadFile] = File(...),
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_org("bulk", "limit_bulk_per_hour")),
 ):
     batch = intake_service.create_batch(db, ctx, role_id, files)
     return {"batch_id": batch.id}
@@ -111,15 +111,15 @@ def get_batch(batch_id: int, ctx: OrgContext = Depends(get_org_context), db: Ses
     "/roles/{role_id}/rank",
     status_code=202,
     response_model=RankStatus,
-    dependencies=[Depends(limit_org("rank", "limit_rank_per_hour"))],
 )
 def rank(
     role_id: int,
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_org("rank", "limit_rank_per_hour")),
 ):
     role_service.get_role(db, ctx, role_id)
-    job = ranking_service.request_rank(db, ctx.org_id, role_id)
+    job = ranking_service.request_rank(db, ctx.org_id, role_id, user_id=ctx.user.id)
     return RankStatus(status="queued", job_id=job.id)
 
 

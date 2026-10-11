@@ -4,7 +4,7 @@ import * as React from "react";
 import { BotStatusChip, Button, Dialog, DialogContent, Icon, useSnackbar, type BotStatus, type IconName } from "@/components/m3";
 import { ApiError } from "@/lib/api";
 import { BOT_STATUS_META } from "@/components/m3/bot-status-chip";
-import { botErrorMessage, botSupported, PLATFORM_LABEL, type Platform } from "@/lib/interviews-logic";
+import { botErrorMessage, botSupported, PLATFORM_LABEL, TEAMS_GUEST_HINT, type Platform } from "@/lib/interviews-logic";
 import { useSendBot, useSendBotFor, useStopBot } from "@/lib/queries/interviews";
 import { cn } from "@/lib/utils";
 
@@ -120,6 +120,7 @@ export function BotControls({
           </>
         )}
       </div>
+      {platform === "teams" && !botActive && <p className="body-s text-on-surface-variant">{TEAMS_GUEST_HINT}</p>}
       {error && (
         <p role="alert" className="body-s text-error">
           {error}

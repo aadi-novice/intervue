@@ -76,36 +76,51 @@ def delete_candidate(
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
 ):
-    candidate_service.delete_candidate(db, ctx, candidate_id)
-    audit_service.record(db, ctx, "candidate.deleted", "candidate", candidate_id)
-    db.commit()
+    candidate_service.delete_candidate(db, ctx, candidate_id)  # audited inside
     return Response(status_code=204)
+
+
+class EraseRequest(BaseModel):
+    confirm: bool = False
+
+
+@router.post("/{candidate_id}/erase")
+def erase_candidate(
+    candidate_id: int,
+    body: EraseRequest,
+    ctx: OrgContext = Depends(require_role("recruiter")),
+    db: Session = Depends(get_db),
+):
+    """Right-to-erasure: removes the candidate, their files, recordings, analyses and cached AI text."""
+    if not body.confirm:
+        raise Invalid("Send {\"confirm\": true} to permanently erase this candidate", "confirm_required")
+    return candidate_service.erase_candidate(db, ctx, candidate_id)
 
 
 @router.post(
     "/{candidate_id}/resume",
-    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
 )
 def upload_resume(
     candidate_id: int,
     file: UploadFile = File(...),
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_user("upload", "limit_uploads_per_hour")),
 ):
     key = candidate_service.upload(db, ctx, candidate_id, file, "resumes")
-    candidate_service.enqueue_resume_parse(ctx.org_id, candidate_id)
+    candidate_service.enqueue_resume_parse(db, ctx.org_id, candidate_id)
     return {"message": "Resume uploaded successfully", "file_path": key}
 
 
 @router.post(
     "/{candidate_id}/transcript",
-    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
 )
 def upload_transcript(
     candidate_id: int,
     file: UploadFile = File(...),
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_user("upload", "limit_uploads_per_hour")),
 ):
     interview_id, segments = candidate_service.upload_transcript_as_interview(
         db, ctx, candidate_id, file
@@ -119,13 +134,13 @@ def upload_transcript(
 
 @router.post(
     "/{candidate_id}/avatar",
-    dependencies=[Depends(limit_user("upload", "limit_uploads_per_hour"))],
 )
 def upload_avatar(
     candidate_id: int,
     file: UploadFile = File(...),
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_user("upload", "limit_uploads_per_hour")),
 ):
     key = candidate_service.upload(db, ctx, candidate_id, file, "avatars")
     return {"message": "Avatar uploaded successfully", "avatar_path": key}

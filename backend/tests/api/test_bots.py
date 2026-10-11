@@ -81,12 +81,19 @@ class TestRequestBot:
         org.settings = {"consent_message": "   "}
         assert bot_service.consent_message_for(org) == settings.bot_default_consent
 
-    @pytest.mark.parametrize("platform,url", [("upload", None), ("teams", "https://teams.microsoft.com/l/x"), ("zoom", "https://x.zoom.us/j/1")])
+    @pytest.mark.parametrize("platform,url", [("upload", None), ("zoom", "https://x.zoom.us/j/1")])
     def test_unsupported_platforms(self, client, db_session, org, cand, launcher, platform, url):
         i = make_interview(db_session, org.id, cand, platform=platform, meeting_url=url)
         r = client.post(f"/interviews/{i.id}/bot")
         assert r.status_code == 422 and r.json()["code"] == "platform_unsupported"
         launcher.launch.assert_not_called()
+
+    def test_teams_interviews_can_get_the_notetaker(self, client, db_session, org, cand, launcher):
+        i = make_interview(db_session, org.id, cand, platform="teams",
+                           meeting_url="https://teams.microsoft.com/l/meetup-join/19%3ameeting_x/0")
+        r = client.post(f"/interviews/{i.id}/bot")
+        assert r.status_code == 202 and r.json()["status"] == "launching"
+        assert launcher.launch.call_args.args[0].meeting_url.startswith("https://teams.microsoft.com/")
 
     def test_only_one_active_bot(self, client, launcher, iv):
         client.post(f"/interviews/{iv.id}/bot")

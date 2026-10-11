@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Microsoft Teams</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  .tiles { display: flex; gap: 8px; padding: 8px; }
+  .tile { width: 240px; height: 160px; background: #333; color: #fff; position: relative; }
+  .outline { position: absolute; inset: 0; border: 3px solid #6264a7; opacity: 0; }
+  .outline.active { opacity: 1; animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { border-width: 2px; } to { border-width: 5px; } }
+  #chat { padding: 8px; }
+  #box { border: 1px solid #999; min-height: 24px; width: 300px; }
+  #leave-dialog { border: 1px solid #000; padding: 8px; }
+</style></head>
+<body>
+  <div class="tiles">
+    <div class="tile" data-tid="calling-participant-stream" aria-label="Priya Sharma, Muted"><span data-tid="display-name">Priya Sharma</span><div class="outline" data-tid="voice-level-stream-outline"></div></div>
+    <div class="tile" data-tid="calling-participant-stream" aria-label="Tom Lee (Guest), Muted"><span data-tid="display-name">Tom Lee (Guest)</span><div class="outline" data-tid="voice-level-stream-outline"></div></div>
+    <div class="tile" data-tid="calling-participant-stream" aria-label="Intervue Notetaker (You), Muted"><span data-tid="display-name">Intervue Notetaker (You)</span><div class="outline" data-tid="voice-level-stream-outline"></div></div>
+  </div>
+  <nav>
+    <button type="button" aria-label="Unmute mic">Mic</button>
+    <button type="button" aria-label="Turn camera on">Camera</button>
+    <button type="button" id="people" aria-label="People (3)">People</button>
+    <button type="button" id="chatbtn" aria-label="Chat">Chat</button>
+    <button type="button" id="leave" aria-label="Leave">Leave</button>
+  </nav>
+  <section id="chat" hidden>
+    <ul id="messages"></ul>
+    <div id="box" role="textbox" contenteditable="true" aria-label="Type a message" data-tid="ckeditor"></div>
+    <button type="button" id="send" aria-label="Send">Send</button>
+  </section>
+  <div id="leave-dialog" role="dialog" aria-label="Leave meeting?" hidden>
+    <p>Leave the meeting?</p>
+    <button type="button" id="confirm">Leave</button>
+    <button type="button" id="cancel">Cancel</button>
+  </div>
+  <script>
+    window.chatMessages = [];
+    window.leaveNeedsConfirm = true;
+    const box = document.getElementById("box");
+    function post() {
+      const v = box.textContent.trim();
+      if (!v) return;
+      window.chatMessages.push(v);
+      const li = document.createElement("li"); li.textContent = v;
+      document.getElementById("messages").appendChild(li);
+      box.textContent = "";
+    }
+    const ended = () => { document.body.innerHTML = "<main><h1>You left the meeting</h1><button type='button'>Rejoin</button></main>"; };
+    document.getElementById("chatbtn").onclick = () => { document.getElementById("chat").hidden = !document.getElementById("chat").hidden; };
+    box.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); post(); } });
+    document.getElementById("send").onclick = post;
+    document.getElementById("leave").onclick = () => {
+      if (window.leaveNeedsConfirm) document.getElementById("leave-dialog").hidden = false; else ended();
+    };
+    document.getElementById("confirm").onclick = ended;
+    document.getElementById("cancel").onclick = () => { document.getElementById("leave-dialog").hidden = true; };
+    // Test hooks
+    window.setSpeaking = (...names) => {
+      document.querySelectorAll(".tile").forEach((t) => {
+        const n = t.querySelector("[data-tid='display-name']").textContent;
+        t.querySelector(".outline").classList.toggle("active", names.includes(n));
+      });
+    };
+    window.setPeopleLabel = (label) => document.getElementById("people").setAttribute("aria-label", label);
+  </script>
+</body></html>

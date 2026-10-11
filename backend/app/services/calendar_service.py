@@ -173,6 +173,13 @@ def _mark_reauth(db: Session, conn: CalendarConnection, why: str) -> None:
     conn.status, conn.last_error = "needs_reauth", why[:500]
     db.commit()
     if first:
+        from app.services import notification_service
+
+        notification_service.notify(
+            db, conn.org_id, conn.user_id, "calendar_reauth", "Reconnect your calendar",
+            f"Access to {conn.account_email} ({conn.provider}) expired or was revoked.",
+            "/settings?tab=integrations",
+        )
         user = db.get(User, conn.user_id)
         if user:
             mailer.send_email(
