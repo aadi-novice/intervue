@@ -55,7 +55,7 @@ Hiring teams lose time and quality in four places:
 - **Cost shown:** the total AI cost of each ranking run is displayed.
 
 ### 4.2 Interview capture (notetaker bot)
-- Paste a **Google Meet** link (or connect a calendar). A bot joins as a guest, waits to be admitted, **posts a recording notice in the meeting chat**, records audio, and leaves when the meeting ends.
+- Paste a **Google Meet** or **Microsoft Teams** link (or connect a calendar). A bot joins as a guest, waits to be admitted, **posts a recording notice in the meeting chat**, records audio, and leaves when the meeting ends. (Teams support is new and only tested against simulated pages; some organizations block guest join.)
 - **Speaker labels** come from the meeting's active-speaker signal, so the transcript says who spoke.
 - Transcript, notes (summary, key points, topics) and **suggested follow-up questions for the next round** are generated automatically.
 - Alternatively: upload a transcript (`.txt .vtt .srt .docx`) or an audio/video recording.
@@ -71,14 +71,23 @@ Hiring teams lose time and quality in four places:
 - Kanban **pipeline**, talent pool with "best matching role", dashboard with upcoming interviews and recent analyses.
 
 ### 4.5 Calendar auto-join
-- Connect Google Calendar or Outlook. Meetings that have a video link and a **known candidate** among the attendees become interviews automatically.
+- Connect Google Calendar or Outlook. Meetings that have a video link and a **known candidate** among the attendees become interviews automatically; cancellations and reschedules follow the calendar.
 - Per-user setting: send the notetaker to **all** such interviews, **only the ones I tag**, or **never**.
+
+### 4.5b Notifications and integrations
+- **In-app notifications** (bell) when an analysis, ranking or export finishes or fails, when a transcript is ready, when the notetaker could not record, or when a calendar needs reconnecting.
+- **Outbound webhooks** for `interview.completed`, `analysis.completed` and `ranking.completed`: signed, retried automatically, SSRF-protected, carrying ids and scores only.
+- **Read-only public API** with revocable, expiring API keys, and **Slack** notifications through an incoming webhook.
 
 ### 4.6 Fairness, privacy and control
 - **Blind review mode:** hide name, photo, email and school until a reviewer explicitly reveals them; every reveal is logged. Names, emails, phone numbers and school names are also stripped from the resume text before the AI scores it.
 - **Recording consent is mandatory:** the bot always posts a notice; organizations can re-word it but cannot turn it off; when it was sent is logged.
 - **Multi-tenant security:** strict per-company data isolation, role-based access, audit log, private storage with short-lived links.
 - **Audit trail:** who viewed, created, deleted, revealed or ran analysis.
+- **Data retention:** recordings, transcripts and speaker data are deleted automatically after a window the organization sets (default 365 days); notes and analyses are kept.
+- **Right to erasure:** erase a candidate and everything derived from them (files, recordings, transcripts, analyses, scores, cached AI text) with a confirmation and a receipt.
+- **Export everything:** admins can export all of the organization's data (JSON plus original files) as a ZIP; secrets are excluded.
+- **Candidate notice:** one click emails a candidate the schedule, the meeting link and the recording notice.
 
 ---
 
@@ -101,11 +110,11 @@ Use these as the core story. Ordered by strength.
 
 | Not there yet | Detail |
 |---|---|
-| **Meeting platforms** | The notetaker works with **Google Meet only**. Teams and Zoom links are recognised, but the bot cannot join them yet. For those, users upload a transcript or recording. |
+| **Meeting platforms** | The notetaker supports **Google Meet and Microsoft Teams**. Zoom links are recognised but the bot cannot join them yet (users upload a transcript or recording). The Teams adapter has **never run against real Teams**. |
 | **Real-world validation** | The Meet bot has been tested against recorded page fixtures, **not yet in a large number of real meetings**. Selectors can break when Google changes its UI. Treat reliability claims carefully. |
 | **AI quality** | Prompts have **not** been tuned against a real evaluation set. Do not publish accuracy numbers. |
 | **Speaker separation for uploaded audio** | Uploaded recordings produce a single speaker label; users map speakers by hand. Meet recordings made by the bot do get speaker labels. |
-| **Not built** | Teams and Zoom bots, retention and "delete my data" tooling, org-wide export, billing, webhooks/API keys, ATS integrations, in-app notifications (email only). |
+| **Not built** | Zoom bot, billing, ATS integrations, hosted meetings (Jitsi). |
 | **Compliance** | There is **no certification** (SOC 2, ISO, etc.) and no formal bias audit. Do not claim compliance. |
 | **Google calendar access** | Until Google approves the app, new users see an "unverified app" warning and there is a cap on users. |
 
@@ -238,7 +247,7 @@ Recruiters, TA leaders, founders and hiring managers are all on LinkedIn, and "h
 3. Three screenshots: ranked list with evidence, interview analysis with citation links, compare view.
 4. "How it works" in 4 steps.
 5. Trust section: humans decide, blind review, mandatory consent notice.
-6. FAQ: Which meeting tools? (Google Meet today.) Does it make hiring decisions? (No.) Where is data stored? (Isolated per company, private storage.) Is it compliant with X? (Do not claim; say what exists.)
+6. FAQ: Which meeting tools? (Google Meet and Teams; Zoom via upload.) Does it make hiring decisions? (No.) Where is data stored? (Isolated per company, private storage.) Is it compliant with X? (Do not claim; say what exists.)
 7. Early-access form.
 
 ### 8.7 Demo script (90 seconds)
@@ -258,7 +267,7 @@ Recruiters, TA leaders, founders and hiring managers are all on LinkedIn, and "h
 | Every score links to the resume quote or transcript line behind it | "Always accurate" / "95% accurate" (no evaluation has been run) |
 | The system verifies quotes exist and caps unsupported scores | "Eliminates bias" / "bias-free" / "EEOC/GDPR/SOC 2 compliant" |
 | Humans make the decision; AI output is a labelled suggestion | "Fully automated hiring" / "replaces your recruiters" |
-| Works with Google Meet today; Teams and Zoom via transcript/recording upload | "Works with Teams and Zoom bots" (bot not built) |
+| Works with Google Meet and (new, lightly tested) Microsoft Teams; Zoom via transcript/recording upload | "Works with Zoom" (bot not built); "works with every Teams setup" (guest join can be blocked by org policy) |
 | Recording notice is mandatory and logged | "Candidates never notice the bot" |
 | Blind review hides identity until a logged reveal | "Saves X hours per hire" (no measured data yet; wait for real users) |
 | Per-run AI cost is tracked and visible | Specific cost per interview as a public promise (estimate only, about a few cents, unverified) |
@@ -297,7 +306,7 @@ Intervue sits between several categories. Position against the *approach*, not n
 - **Built by:** a small team; do not invent team size, funding or founding story.
 - **Tech (for technical audiences):** web app with a Python/FastAPI backend, Next.js frontend, PostgreSQL with vector search, a Node + Playwright meeting bot, and a speech-to-text service; AI calls go through one gateway that records cost.
 - **Deployment options:** containers on AWS, Render, or a single server.
-- **Roadmap items not yet built:** Teams bot, Zoom bot, data-retention and export tools, billing, webhooks/API access, ATS integrations.
+- **Roadmap items not yet built:** Zoom bot, billing, ATS integrations, hosted meetings.
 
 ---
 
