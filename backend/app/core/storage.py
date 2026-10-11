@@ -57,6 +57,20 @@ def get(key: str) -> bytes:
     return _client().get_object(Bucket=settings.s3_bucket, Key=key)["Body"].read()
 
 
+def download_file(key: str, path: str) -> None:
+    """Stream an object to a local file (large recordings never sit in memory)."""
+    _client().download_file(settings.s3_bucket, key, path)
+
+
+def upload_file(key: str, path: str, content_type: str) -> str:
+    """Multipart-capable upload of a local file."""
+    _client().upload_file(
+        path, settings.s3_bucket, key,
+        ExtraArgs={"ContentType": content_type, "ServerSideEncryption": "AES256"},
+    )
+    return key
+
+
 def get_text(key: str, encoding: str = "utf-8") -> str:
     return get(key).decode(encoding)
 

@@ -4,7 +4,7 @@ from app.ai.schemas import InterviewAnalysisOut, InterviewNotesOut
 
 
 def generate_interview_analysis(
-    resume_text: str, transcript_text: str, org_id: int
+    resume_text: str, transcript_text: str, org_id: int, candidate_id: int | None = None
 ) -> InterviewAnalysisOut:
     return llm.complete_json(
         purpose="analysis",
@@ -13,11 +13,12 @@ def generate_interview_analysis(
         schema=InterviewAnalysisOut,
         org_id=org_id,
         temperature=0.3,
+        candidate_id=candidate_id,
     )
 
 
 def generate_interview_notes(
-    transcript_text: str, role_name: str, org_id: int
+    transcript_text: str, role_name: str, org_id: int, candidate_id: int | None = None
 ) -> InterviewNotesOut:
     return llm.complete_json(
         purpose="interview_notes",
@@ -26,4 +27,5 @@ def generate_interview_notes(
         schema=InterviewNotesOut,
         org_id=org_id,
         temperature=0.2,
+        candidate_id=candidate_id,
     )

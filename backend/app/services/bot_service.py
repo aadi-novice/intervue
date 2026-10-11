@@ -307,6 +307,14 @@ def handle_event(db: Session, session: BotSession, payload: dict) -> None:
             except Invalid:
                 pass
         session.left_at = session.left_at or _now()
+        from app.services import notification_service
+
+        notification_service.notify(
+            db, session.org_id, iv.created_by_user_id, "bot_failed",
+            f"Notetaker could not record: {iv.title}",
+            f"Reason: {session.failure_reason}. You can upload a recording or transcript instead.",
+            f"/interviews/{iv.id}",
+        )
         if session.chunks:  # salvage partial recordings
             iv.status = "processing"
             db.commit()

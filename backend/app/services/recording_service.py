@@ -212,6 +212,12 @@ def _notify(db: Session, iv: Interview, analysed: bool) -> None:
     mailer.send_email(
         user.email, f"Transcript ready: {iv.title}", f"The transcript for {iv.title} is ready. {extra}\n{link}"
     )
+    from app.services import notification_service
+
+    notification_service.notify(
+        db, iv.org_id, user.id, "transcript_ready", f"Transcript ready: {iv.title}", extra,
+        f"/interviews/{iv.id}",
+    )
 
 
 # ── browser -> S3 uploads of audio/video (M3.2) ───────────────────────────────

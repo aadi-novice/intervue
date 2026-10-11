@@ -150,7 +150,7 @@ class TestTranscriberCallback:
         db_session.commit()
         cand_ids = {}
 
-        def analysis(resume, transcript, org_id):
+        def analysis(resume, transcript, org_id, candidate_id=None):
             ids = [s.id for s in db_session.query(TranscriptSegment).filter_by(interview_id=iv.id, speaker_kind="candidate")]
             cand_ids["ids"] = ids
             return InterviewAnalysisOut(

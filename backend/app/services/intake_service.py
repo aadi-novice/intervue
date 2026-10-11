@@ -10,7 +10,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.ai.extractor import extract_text_from_bytes
-from app.ai.resume_parser import extract_resume_profile
+from app.ai.resume_parser import cache_key_for, extract_resume_profile
 from app.api.deps import OrgContext
 from app.core import storage
 from app.core.errors import Invalid, NotFound
@@ -217,6 +217,14 @@ def _ingest(db: Session, org_id: int, batch: IntakeBatch, key: str) -> None:
     from app.services.resume_service import save_profile
 
     save_profile(db, org_id, cand, text, content_hash, parsed)
+    # tag the parse run with this candidate so erasure can scrub its cached result
+    from app.models.ai_run import AIRun
+
+    db.query(AIRun).filter(
+        AIRun.org_id == org_id, AIRun.cache_key == cache_key_for(text, org_id),
+        AIRun.candidate_id.is_(None),
+    ).update({"candidate_id": cand.id}, synchronize_session=False)
+    db.commit()
     if old_key and old_key != key:
         try:
             storage.delete(old_key)

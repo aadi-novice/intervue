@@ -70,6 +70,7 @@ class InterviewSummary(BaseModel):
     platform: str
     status: str
     bot_status: str | None = None
+    transcript_purged: bool = False  # recordings/transcript removed by the retention policy
     created_at: datetime
 
 

@@ -53,7 +53,7 @@ def parse_resume(db: Session, org_id: int, candidate_id: int) -> ResumeProfile:
     if existing and existing.content_hash == content_hash and existing.raw_text:
         return existing
 
-    parsed = extract_resume_profile(text, org_id)
+    parsed = extract_resume_profile(text, org_id, cand.id)
     prof = save_profile(db, org_id, cand, text, content_hash, parsed)
 
     # embed + cross-role similarity, then a debounced re-rank for the candidate's role

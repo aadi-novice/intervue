@@ -145,23 +145,65 @@ def update_status(db: Session, ctx: OrgContext, candidate_id: int, status: str) 
     return c
 
 
-def delete_candidate(db: Session, ctx: OrgContext, candidate_id: int) -> None:
-    c = get_candidate(db, ctx, candidate_id)
-    keys = [k for k in (c.resume_path, c.transcript_path, c.avatar_path) if k]
-    from app.models.interview import Interview, Recording
+def erase_candidate(
+    db: Session, ctx: OrgContext, candidate_id: int, action: str = "candidate.erased"
+) -> dict:
+    """Permanently remove a candidate and everything derived from them (GDPR-style erasure).
 
-    interview_ids = db.query(Interview.id).filter(Interview.candidate_id == c.id)
-    keys += [
-        r.blob_path
-        for r in db.query(Recording).filter(Recording.interview_id.in_(interview_ids))
-    ]
-    db.delete(c)
+    Deletes DB rows explicitly (not relying on database cascades), scrubs cached AI results that
+    contain their text, removes related notifications and calendar copies, then deletes every
+    stored file. Returns a receipt with counts only (no personal data).
+    """
+    from app.models.ai_run import AIRun
+    from app.models.calendar import CalendarEvent
+    from app.models.interview import BotSession, Recording, SpeakerEvent, TranscriptSegment
+    from app.models.notification import Notification
+    from app.models.rubric import CandidateReveal, RoleMatch
+    from app.services import audit_service
+
+    c = get_candidate(db, ctx, candidate_id)
+    iv_ids = [i for (i,) in db.query(Interview.id).filter(Interview.candidate_id == c.id)]
+
+    keys = [k for k in (c.resume_path, c.transcript_path, c.avatar_path) if k]
+    receipt = {"interviews": len(iv_ids), "recordings": 0, "analyses": len(c.analyses)}
+    if iv_ids:
+        recs = db.query(Recording).filter(Recording.interview_id.in_(iv_ids)).all()
+        receipt["recordings"] = len(recs)
+        keys += [r.blob_path for r in recs]
+        for s in db.query(BotSession).filter(BotSession.interview_id.in_(iv_ids)):
+            keys += [ch.get("blob") for ch in (s.chunks or [])]
+            keys += [s.screenshot_key, s.manifest_key]
+        db.query(Recording).filter(Recording.interview_id.in_(iv_ids)).delete(synchronize_session=False)
+        db.query(SpeakerEvent).filter(SpeakerEvent.interview_id.in_(iv_ids)).delete(synchronize_session=False)
+        db.query(TranscriptSegment).filter(TranscriptSegment.interview_id.in_(iv_ids)).delete(synchronize_session=False)
+        for iid in iv_ids:
+            db.query(Notification).filter(
+                Notification.org_id == ctx.org_id, Notification.link.like(f"/interviews/{iid}%")
+            ).delete(synchronize_session=False)
+        db.query(CalendarEvent).filter(CalendarEvent.interview_id.in_(iv_ids)).delete(synchronize_session=False)
+    db.query(CalendarEvent).filter(CalendarEvent.candidate_id == c.id).delete(synchronize_session=False)
+    db.query(RoleMatch).filter(RoleMatch.candidate_id == c.id).delete(synchronize_session=False)
+    db.query(CandidateReveal).filter(CandidateReveal.candidate_id == c.id).delete(synchronize_session=False)
+    # cached model outputs contain the candidate's resume/transcript text: scrub, keep cost rows
+    db.query(AIRun).filter(AIRun.org_id == ctx.org_id, AIRun.candidate_id == c.id).update(
+        {"result": None, "candidate_id": None}, synchronize_session=False
+    )
+    db.delete(c)  # ORM cascades: analyses, resume profile, interviews (+participants, notes, bot sessions)
+    audit_service.record(db, ctx, action, "candidate", candidate_id, **receipt)
     db.commit()
-    for k in keys:  # deletion removes blobs too
+    deleted = 0
+    for k in {k for k in keys if k}:
         try:
             storage.delete(k)
+            deleted += 1
         except Exception:
             pass
+    return {"candidate_id": candidate_id, "erased_at": datetime.now(UTC).isoformat(),
+            "files_deleted": deleted, **receipt}
+
+
+def delete_candidate(db: Session, ctx: OrgContext, candidate_id: int) -> None:
+    erase_candidate(db, ctx, candidate_id, action="candidate.deleted")
 
 
 def _parse_status(c: Candidate, p: ResumeProfile | None) -> str:

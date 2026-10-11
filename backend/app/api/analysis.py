@@ -16,12 +16,12 @@ router = APIRouter(prefix="/analysis", tags=["Analysis"])
     "/candidates/{candidate_id}",
     status_code=202,
     response_model=AnalysisStatusResponse,
-    dependencies=[Depends(limit_org("analysis", "limit_analysis_per_hour"))],
 )
 def analyze_candidate_route(
     candidate_id: int,
     ctx: OrgContext = Depends(require_role("recruiter")),
     db: Session = Depends(get_db),
+    _rate: None = Depends(limit_org("analysis", "limit_analysis_per_hour")),
 ):
     iv = analysis_service.latest_interview_for_candidate(db, ctx, candidate_id)
     job = analysis_service.request_interview_analysis(db, ctx, iv.id)

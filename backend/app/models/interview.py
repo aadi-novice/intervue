@@ -48,6 +48,8 @@ class Interview(Base, TimestampMixin, OrgScopedMixin):
     created_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+    # set by the retention job after recordings/transcripts were deleted
+    transcript_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     candidate: Mapped["Candidate"] = relationship(back_populates="interviews")
     participants: Mapped[list["InterviewParticipant"]] = relationship(

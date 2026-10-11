@@ -118,6 +118,7 @@ def complete_json(
     temperature: float = 0.2,
     use_cache: bool = True,
     job_id: int | None = None,
+    candidate_id: int | None = None,
 ) -> T:
     model = model_for(purpose)
     key = cache_key(org_id, purpose, prompt_version, model, messages)
@@ -126,7 +127,7 @@ def complete_json(
         if hit is not None:
             _record(
                 org_id=org_id, purpose=purpose, model=model, prompt_version=prompt_version,
-                status="cached", cache_key=key, job_id=job_id, input_tokens=0, output_tokens=0, cost_usd=0,
+                status="cached", cache_key=key, job_id=job_id, candidate_id=candidate_id, input_tokens=0, output_tokens=0, cost_usd=0,
                 latency_ms=0,
             )
             return schema.model_validate(hit)
@@ -145,7 +146,7 @@ def complete_json(
     except Exception as e:
         _record(
             org_id=org_id, purpose=purpose, model=model, prompt_version=prompt_version,
-            status="error", error=scrub(str(e)), cache_key=key, job_id=job_id, input_tokens=0, output_tokens=0,
+            status="error", error=scrub(str(e)), cache_key=key, job_id=job_id, candidate_id=candidate_id, input_tokens=0, output_tokens=0,
             cost_usd=0, latency_ms=int((time.perf_counter() - started) * 1000),
         )
         raise
@@ -154,7 +155,7 @@ def complete_json(
     in_t, out_t = (usage.prompt_tokens, usage.completion_tokens) if usage else (0, 0)
     _record(
         org_id=org_id, purpose=purpose, model=model, prompt_version=prompt_version,
-        status="ok", cache_key=key, job_id=job_id, input_tokens=in_t, output_tokens=out_t,
+        status="ok", cache_key=key, job_id=job_id, candidate_id=candidate_id, input_tokens=in_t, output_tokens=out_t,
         cost_usd=compute_cost(model, in_t, out_t),
         latency_ms=int((time.perf_counter() - started) * 1000),
         result=parsed.model_dump(mode="json"),

@@ -22,4 +22,6 @@ class AIRun(Base, TimestampMixin, OrgScopedMixin):
     error: Mapped[str | None] = mapped_column(Text)
     cache_key: Mapped[str | None] = mapped_column(String(64), index=True)
     job_id: Mapped[int | None] = mapped_column(Integer, index=True)  # attributes cost to a job
+    # whose data the prompt/result contains, so erasure can scrub cached results
+    candidate_id: Mapped[int | None] = mapped_column(Integer, index=True)
     result: Mapped[dict | None] = mapped_column(JSON)

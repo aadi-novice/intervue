@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     limit_bulk_per_hour: int = 20
     limit_uploads_per_hour: int = 300
 
+    # Compliance (M10a)
+    ai_cache_retention_days: int = 30  # cached AI results contain candidate text
+    export_retention_days: int = 7
+    limit_export_per_hour: int = 3
+
     # Calendar auto-join
     calendar_sync_minutes: int = 5
     calendar_window_days: int = 14

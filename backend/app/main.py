@@ -10,10 +10,12 @@ from app.api import (
     auth,
     calendar,
     candidate,
+    compliance,
     dashboard,
     health,
     internal,
     interviews,
+    notifications,
     orgs,
     ranking,
     role,
@@ -86,4 +88,6 @@ app.include_router(interviews.router)
 app.include_router(ranking.router)
 app.include_router(dashboard.router)
 app.include_router(calendar.router)
+app.include_router(notifications.router)
+app.include_router(compliance.router)
 app.include_router(internal.router)
