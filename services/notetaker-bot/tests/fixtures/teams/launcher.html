@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Microsoft Teams</title></head>
+<body>
+  <div id="cookies" role="dialog" aria-label="Cookies">
+    <p>We use optional cookies.</p>
+    <button type="button" id="accept">Accept</button>
+  </div>
+  <main id="launcher">
+    <h1>How do you want to join your Teams meeting?</h1>
+    <button type="button" id="app">Open your Teams app</button>
+    <button type="button" id="download">Download the Windows app</button>
+    <button type="button" id="web" data-tid="joinOnWeb">Continue on this browser</button>
+  </main>
+  <main id="prejoin" hidden>
+    <h1>What name would you like to use?</h1>
+    <input type="text" aria-label="Type your name" placeholder="Type your name" value="">
+    <button type="button" id="cam" aria-label="Turn camera off">Camera</button>
+    <button type="button" id="mic" aria-label="Mute mic">Mic</button>
+    <button type="button" id="join">Join now</button>
+  </main>
+  <main id="lobby" hidden><h2>Someone in the meeting should let you in soon</h2></main>
+  <script>
+    window.state = { micOff: false, camOff: false, joinedName: null, clicked: [], cookiesAccepted: false };
+    for (const id of ["app", "download"]) document.getElementById(id).onclick = () => window.state.clicked.push(id);
+    document.getElementById("accept").onclick = () => { window.state.cookiesAccepted = true; document.getElementById("cookies").remove(); };
+    document.getElementById("web").onclick = () => {
+      window.state.clicked.push("web");
+      document.getElementById("launcher").hidden = true;
+      setTimeout(() => { document.getElementById("prejoin").hidden = false; }, 150);
+    };
+    const cam = document.getElementById("cam"), mic = document.getElementById("mic");
+    cam.onclick = () => { window.state.camOff = !window.state.camOff; cam.setAttribute("aria-label", window.state.camOff ? "Turn camera on" : "Turn camera off"); };
+    mic.onclick = () => { window.state.micOff = !window.state.micOff; mic.setAttribute("aria-label", window.state.micOff ? "Unmute mic" : "Mute mic"); };
+    document.getElementById("join").onclick = () => {
+      window.state.joinedName = document.querySelector("input").value;
+      document.getElementById("prejoin").hidden = true;
+      document.getElementById("lobby").hidden = false;
+    };
+  </script>
+</body></html>
