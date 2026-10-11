@@ -27,6 +27,7 @@ import { api, type CandidateDetail } from "@/lib/api";
 import type { InterviewAnalysis } from "@/lib/api-interviews";
 import { CAN, roleAllowed, useRole } from "@/lib/roles";
 import { RequireRole } from "@/components/require-role";
+import { EraseCandidateAction } from "@/components/compliance/erase-candidate-dialog";
 import { AnalysisView } from "@/components/interviews/analysis-panel";
 import { InterviewRow } from "@/components/interviews/interviews-explorer";
 import { ScheduleDialog } from "@/components/interviews/schedule-dialog";
@@ -615,6 +616,19 @@ export default function CandidateProfilePage() {
           </TabsContent>
         )}
       </Tabs>
+
+      <RequireRole roles={CAN.create}>
+        <Card variant="outlined" className="flex flex-wrap items-center justify-between gap-3 border-error/40 p-5">
+          <div className="min-w-0 flex-1">
+            <h2 className="title-m text-error">Danger zone</h2>
+            <p className="body-s text-on-surface-variant">
+              Erase all data permanently removes this candidate, their files, recordings, analyses and cached AI text,
+              and returns a receipt. Use this for right-to-erasure requests.
+            </p>
+          </div>
+          <EraseCandidateAction candidateId={candidate.id} candidateName={candidate.name} />
+        </Card>
+      </RequireRole>
 
       <ScheduleDialog open={schedule} onOpenChange={setSchedule} candidateId={Number(candidate.id)} />
     </div>

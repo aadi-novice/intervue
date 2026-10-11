@@ -10,14 +10,28 @@ import { analysisErrorMessage, buildCitations, citationHref, normalizePoint } fr
 import { useAnalysisStatus, useInterviewAnalysis, useRequestAnalysis } from "@/lib/queries/interviews";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useTranscriptPurged } from "@/components/compliance/purged";
 
 export function CitationChips({ interviewId, segmentIds }: { interviewId: number | string | null; segmentIds: number[] | undefined }) {
+  const purged = useTranscriptPurged();
   if (interviewId == null) return null;
   const cites = buildCitations(interviewId, segmentIds);
   if (cites.length === 0) return null;
   return (
     <span className="ms-1 inline-flex flex-wrap gap-1 align-middle">
-      {cites.map((c, i) => (
+      {cites.map((c, i) =>
+        purged ? (
+          <span
+            key={c.id}
+            aria-disabled="true"
+            title="The transcript was deleted under the retention policy"
+            data-testid="citation-disabled"
+            className="inline-flex h-6 items-center gap-0.5 rounded-sm bg-surface-container-highest px-2 label-s text-on-surface/38"
+          >
+            <Icon name="format_quote" size={14} />[{i + 1}]
+            <span className="sr-only"> (transcript no longer available)</span>
+          </span>
+        ) : (
         <Link
           key={c.id}
           href={c.href}
@@ -26,7 +40,8 @@ export function CitationChips({ interviewId, segmentIds }: { interviewId: number
         >
           <Icon name="format_quote" size={14} />[{i + 1}]
         </Link>
-      ))}
+        ),
+      )}
     </span>
   );
 }
@@ -82,6 +97,7 @@ export function humanizeRecommendation(r: string): string {
 /** Pure rendering of an analysis (used on the interview and candidate pages). */
 export function AnalysisView({ analysis, interviewId }: { analysis: InterviewAnalysis; interviewId: number | string | null }) {
   const ivId = interviewId ?? analysis.interview_id;
+  const purged = useTranscriptPurged();
   const aggregate = Math.round((analysis.technical_score + analysis.communication_score + analysis.confidence_score) / 3);
   const moments = analysis.key_moments.map((m): InterviewKeyMoment => (typeof m === "string" ? { moment: m, signal: "" } : m));
   return (
@@ -121,7 +137,11 @@ export function AnalysisView({ analysis, interviewId }: { analysis: InterviewAna
           <ul className="space-y-2">
             {moments.map((m, i) => (
               <li key={i} className="flex flex-wrap items-start gap-2.5 rounded-md bg-surface-container p-3 body-s">
-                {m.timestamp_ms != null && ivId != null && m.segment_id != null ? (
+                {m.timestamp_ms != null && ivId != null && m.segment_id != null && purged ? (
+                  <span aria-disabled="true" title="The transcript was deleted under the retention policy" className="inline-flex h-6 items-center rounded-sm bg-surface-container-highest px-2 label-m tabular-nums text-on-surface/38">
+                    {formatTimestamp(m.timestamp_ms)}
+                  </span>
+                ) : m.timestamp_ms != null && ivId != null && m.segment_id != null ? (
                   <Link
                     href={citationHref(ivId, m.segment_id)}
                     className="focus-ring inline-flex h-6 items-center rounded-sm bg-primary-container px-2 label-m tabular-nums text-on-primary-container hover:underline"

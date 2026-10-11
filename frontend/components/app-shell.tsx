@@ -23,6 +23,7 @@ import {
 } from "@/components/m3";
 import { useMotionPattern } from "@/app/theme/motion";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { CAN, roleAllowed, useRole } from "@/lib/roles";
 
 const DESTINATIONS: NavDestination[] = [
@@ -159,6 +160,7 @@ export default function AppShell({ children, orgSwitcher, avatarMenu, banner }: 
             trailing={
               <>
                 {orgSwitcher ?? <DefaultOrgSwitcher />}
+                <NotificationBell />
                 <ThemeToggle />
                 {avatarMenu ?? <DefaultAvatarMenu />}
               </>
