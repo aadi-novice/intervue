@@ -24,3 +24,6 @@ storage/
 .ruff_cache
 
 .env.prod
+
+# Celery beat runtime state
+celerybeat-schedule*

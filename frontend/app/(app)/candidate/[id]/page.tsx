@@ -36,6 +36,8 @@ import { CandidateMatchesCard } from "@/components/ranking/candidate-matches-car
 import { useCandidateActivity, useInterviews } from "@/lib/queries/interviews";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
+import { isParseFailed, isParsePending } from "@/lib/resume-parse";
+import { ResumeParseFailedBanner } from "@/components/candidate/resume-parse-failed";
 import { uploadErrorMessage } from "@/lib/interviews-logic";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -255,7 +257,8 @@ export default function CandidateProfilePage() {
   }, [id]);
 
   // Resume parsing is async: poll the candidate while it is pending.
-  const parsePending = candidate?.resume_parse_status === "pending";
+  const parsePending = isParsePending(candidate);
+  const parseFailed = isParseFailed(candidate);
   useEffect(() => {
     if (!parsePending) return;
     const t = setInterval(reload, 3000);
@@ -419,6 +422,7 @@ export default function CandidateProfilePage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 pt-4">
+          {parseFailed && <ResumeParseFailedBanner error={candidate.resume_parse_error} />}
           {parsePending && (
             <Card variant="outlined" className="space-y-3 p-5" role="status" aria-busy="true">
               <p className="label-l text-on-surface-variant">Parsing resume…</p>
@@ -459,6 +463,7 @@ export default function CandidateProfilePage() {
         </TabsContent>
 
         <TabsContent value="resume" className="space-y-4 pt-4">
+          {parseFailed && <ResumeParseFailedBanner error={candidate.resume_parse_error} />}
           <Card variant="outlined" className="space-y-3 p-5">
             <label className="state-layer relative flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-outline-variant p-3 focus-within:outline-3 focus-within:outline-secondary">
               {uploading === "resume" ? (
@@ -474,7 +479,7 @@ export default function CandidateProfilePage() {
               </div>
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.docx"
                 disabled={!canEdit}
                 className="sr-only"
                 onChange={(e) => {

@@ -34,6 +34,9 @@ describe("detectPlatform", () => {
     expect(platformHint("https://example.com")?.ok).toBe(false);
     expect(platformHint("https://zoom.us/j/1")?.text).toMatch(/upload a transcript or recording/i);
     expect(platformHint("https://meet.google.com/aaa-bbbb-ccc")?.ok).toBe(true);
+    expect(platformHint("https://teams.microsoft.com/l/meetup-join/x")?.ok).toBe(true);
+    expect(platformHint("https://teams.microsoft.com/l/meetup-join/x")?.text).toMatch(/block guests/i);
+    expect(platformHint("https://zoom.us/j/1")?.ok).toBe(false);
   });
 });
 

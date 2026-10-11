@@ -17,7 +17,7 @@ const SKIP_MESSAGES: Record<string, string> = {
   no_candidate_match: "No known candidate in the attendees. Pick one to tag it.",
   not_tagged: "Auto-join is set to tagged only.",
   auto_join_off: "Auto-join is turned off for this calendar.",
-  platform_unsupported: "The notetaker supports Google Meet only for now.",
+  platform_unsupported: "Zoom links aren't supported by the notetaker yet (it joins Google Meet and Microsoft Teams).",
   role_cannot_schedule_bot: "Only admins, recruiters and hiring managers can have the notetaker scheduled automatically.",
   event_in_past: "This meeting has already happened.",
   bot_already_attempted: "The notetaker already tried this meeting; send it manually from the interview page.",

@@ -31,8 +31,12 @@ export function detectPlatform(raw: string): Platform | null {
 
 /** Platforms the notetaker bot can join today. */
 export function botSupported(platform: string | null | undefined): boolean {
-  return platform === "google_meet";
+  return platform === "google_meet" || platform === "teams";
 }
+
+/** Honest caveat for Microsoft Teams: some tenants block guests (the bot then reports `guests_not_allowed`). */
+export const TEAMS_GUEST_HINT =
+  "Some organizations block guests from joining Teams meetings; if yours does, the notetaker will report that it was not allowed in and you can upload a transcript or recording instead.";
 
 /** Friendly helper text for the meeting-link field. */
 export function platformHint(raw: string): { ok: boolean; text: string } | null {
@@ -44,6 +48,8 @@ export function platformHint(raw: string): { ok: boolean; text: string } | null 
       ok: false,
       text: `${PLATFORM_LABEL[p]} detected. The notetaker can't join it yet; upload a transcript or recording after the call instead.`,
     };
+  if (p === "teams")
+    return { ok: true, text: `${PLATFORM_LABEL[p]} detected. The notetaker can join this meeting. ${TEAMS_GUEST_HINT}` };
   return { ok: true, text: `${PLATFORM_LABEL[p]} detected. The notetaker can join this meeting.` };
 }
 
@@ -196,7 +202,7 @@ export function botErrorMessage(code: string | undefined, fallback: string): str
     case "bot_active":
       return "A notetaker is already scheduled or in the call.";
     case "platform_unsupported":
-      return "The notetaker only supports Google Meet for now. Upload a transcript or recording instead.";
+      return "The notetaker supports Google Meet and Microsoft Teams, not Zoom yet. Upload a transcript or recording instead.";
     case "no_active_bot":
       return "No notetaker is active for this interview.";
     case "interview_closed":

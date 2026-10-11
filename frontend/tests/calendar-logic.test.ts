@@ -18,7 +18,7 @@ const ev = (id: number, start: string): CalendarEvent => ({
 
 describe("skipReasonMessage", () => {
   it("maps known codes", () => {
-    expect(skipReasonMessage("platform_unsupported")).toBe("The notetaker supports Google Meet only for now.");
+    expect(skipReasonMessage("platform_unsupported")).toBe("Zoom links aren't supported by the notetaker yet (it joins Google Meet and Microsoft Teams).");
     expect(skipReasonMessage("no_candidate_match")).toMatch(/pick one to tag/i);
     expect(skipReasonMessage("bot_already_attempted")).toMatch(/send it manually/);
     expect(skipReasonMessage("role_cannot_schedule_bot")).toMatch(/recruiters/);

@@ -7,6 +7,7 @@ import { MembersSettings } from "@/components/settings/members";
 import { Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { PrivacySettings } from "@/components/settings/privacy-settings";
+import { IntegrationsAdmin } from "@/components/integrations/integrations-admin";
 import { CalendarIntegrations } from "@/components/settings/calendar-integrations";
 import { useTheme, type ThemePreference } from "@/components/theme-provider";
 
@@ -95,6 +96,7 @@ function SettingsContent() {
         </TabsContent>
         <TabsContent value="integrations" className="pt-6">
           <CalendarIntegrations />
+          <IntegrationsAdmin />
         </TabsContent>
         <TabsContent value="privacy" className="pt-6">
           <PrivacySettings onEditNotice={() => setTab("organization")} />
